@@ -57,7 +57,7 @@ func NewSiteBuilder(config SiteConfig) *SiteBuilder {
 	}
 
 	tmpl := template.Must(template.New("").Funcs(funcMap).Parse(
-		indexTemplate + postTemplate + feedTemplate + styleTemplate,
+		indexTemplate + postTemplate + feedTemplate + styleTemplate + webringTemplate,
 	))
 
 	return &SiteBuilder{
@@ -235,6 +235,7 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <div class="lbl">{{.Config.Title}}</div>
 <div class="lbl">&copy; {{.Config.Author}} 2026</div>
 </footer>
+{{template "webring"}}
 </body>
 </html>{{end}}`
 
@@ -272,6 +273,7 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <div class="lbl">{{.Config.Title}}</div>
 <div class="lbl"><a href="/">all posts</a></div>
 </footer>
+{{template "webring"}}
 </body>
 </html>{{end}}`
 
@@ -508,4 +510,67 @@ footer a:hover { border-color: var(--muted); }
   footer { padding: 20px 20px 32px; flex-direction: column; gap: 8px; }
   .wordmark { font-size: 20px; }
 }
+
+.webring {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  background: rgba(0,0,0,0.04);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
+}
+
+@media (prefers-color-scheme: dark) {
+  .webring { background: rgba(255,255,255,0.04); }
+}
+
+.webring-name { color: inherit; opacity: 0.5; }
+
+.webring a {
+  color: inherit;
+  opacity: 0.5;
+  text-decoration: none;
+  transition: opacity 0.2s;
+  border-bottom: none;
+}
+.webring a:hover { opacity: 0.7; border-bottom: none; }
+{{end}}`
+
+var webringTemplate = `{{define "webring"}}
+<nav class="webring">
+  <a class="webring-prev" href="#">&#8592;</a>
+  <span class="webring-name">generativeplane</span>
+  <a class="webring-next" href="#">&#8594;</a>
+</nav>
+<script>
+(function() {
+  var ring = [
+    { name: 'benjaminaskins', url: 'https://benjaminaskins.com' },
+    { name: 'genlevel', url: 'https://genlevel.com' },
+    { name: 'generativeplane', url: 'https://generativeplane.com' },
+    { name: 'isitconscious', url: 'https://isitconscious.xyz' }
+  ];
+  var host = location.hostname.replace('www.', '');
+  var idx = ring.findIndex(function(s) { return host.indexOf(s.name) !== -1; });
+  if (idx === -1) idx = 0;
+  var prev = ring[(idx - 1 + ring.length) % ring.length];
+  var next = ring[(idx + 1) % ring.length];
+  var nav = document.querySelector('.webring');
+  nav.querySelector('.webring-prev').href = prev.url;
+  nav.querySelector('.webring-prev').textContent = '\u2190 ' + prev.name;
+  nav.querySelector('.webring-next').href = next.url;
+  nav.querySelector('.webring-next').textContent = next.name + ' \u2192';
+  nav.querySelector('.webring-name').textContent = ring[idx].name;
+})();
+</script>
 {{end}}`
