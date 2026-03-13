@@ -26,7 +26,12 @@ type draftItem struct {
 }
 
 func runDrafts(cmd *cobra.Command, args []string) error {
-	resp, err := http.Get(serviceURL() + "/api/drafts")
+	req, err := authedRequest("GET", serviceURL()+"/api/drafts", nil)
+	if err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("list drafts: %w", err)
 	}

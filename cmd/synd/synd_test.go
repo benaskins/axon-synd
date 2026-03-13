@@ -168,6 +168,7 @@ func TestRunPostCallsAPI(t *testing.T) {
 	defer apiSrv.Close()
 
 	t.Setenv("SYND_SERVICE_URL", apiSrv.URL)
+	t.Setenv("SYND_AUTH_TOKEN", "test-token")
 
 	rootCmd.SetArgs([]string{"post", "test via api"})
 	rootCmd.SetContext(context.Background())
