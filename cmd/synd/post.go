@@ -121,13 +121,21 @@ func runPost(cmd *cobra.Command, args []string) error {
 	if doSyndicate {
 		// Refresh post after publish
 		post = store.Get(post.ID)
-		config, err := blueskyConfigFromEnv()
+
+		bskyConfig, err := blueskyConfigFromEnv()
 		if err == nil {
 			if pds := os.Getenv("SYND_BLUESKY_PDS"); pds != "" {
-				config.PDS = pds
+				bskyConfig.PDS = pds
 			}
-			if err := syndicateToBluesky(ctx, store, post, baseURL(cmd), config); err != nil {
+			if err := syndicateToBluesky(ctx, store, post, baseURL(cmd), bskyConfig); err != nil {
 				return fmt.Errorf("bluesky: %w", err)
+			}
+		}
+
+		mastoConfig, err := mastodonConfigFromEnv()
+		if err == nil {
+			if err := syndicateToMastodon(ctx, store, post, baseURL(cmd), mastoConfig); err != nil {
+				return fmt.Errorf("mastodon: %w", err)
 			}
 		}
 	}
