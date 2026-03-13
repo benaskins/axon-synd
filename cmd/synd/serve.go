@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -62,22 +63,16 @@ func runServe(cmd *cobra.Command, args []string) error {
 	go w.run(cmd.Context())
 	slog.Info("worker started", "interval", pollInterval, "syndicate", doSyndicate)
 
-	// Start web server
-	h := newWebHandler(store)
-	api := newAPIHandler(store)
+	// Auth middleware
+	authURL := os.Getenv("SYND_AUTH_URL")
+	if authURL == "" {
+		authURL = "https://auth.studio.internal"
+	}
+	authClient := axon.NewAuthClientPlain(authURL)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	mux.HandleFunc("POST /api/posts", api.CreatePost)
-	mux.HandleFunc("GET /api/drafts", api.ListDrafts)
-	mux.HandleFunc("POST /api/drafts/{id}/approve", api.ApprovePost)
-	mux.HandleFunc("GET /drafts/{id}", h.ShowDraft)
-	mux.HandleFunc("POST /drafts/{id}/revise", h.ReviseDraft)
-	mux.HandleFunc("POST /drafts/{id}/approve", h.ApproveDraft)
+	mux := buildMux(store, authClient)
 
-	slog.Info("serving", "addr", addr)
+	slog.Info("serving", "addr", addr, "auth_url", authURL)
 	fmt.Printf("listening on %s\n", addr)
 	return http.ListenAndServe(addr, mux)
 }
@@ -136,4 +131,68 @@ func newMemoryStore() (*synd.PostStore, *synd.PostProjection) {
 	events := fact.NewMemoryStore(fact.WithProjector(projection))
 	store.SetEventStore(events)
 	return store, projection
+}
+
+// buildMux creates the HTTP mux with auth middleware on all routes except /health.
+// API routes return 401 for unauthenticated requests.
+// Web routes redirect to the login page for unauthenticated requests.
+func buildMux(store *synd.PostStore, sv axon.SessionValidator) *http.ServeMux {
+	requireAuth := axon.RequireAuth(sv)
+	loginURL := authLoginURL()
+	webAuth := webAuthRedirect(sv, loginURL)
+
+	h := newWebHandler(store)
+	api := newAPIHandler(store)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mux.Handle("POST /api/posts", requireAuth(http.HandlerFunc(api.CreatePost)))
+	mux.Handle("GET /api/drafts", requireAuth(http.HandlerFunc(api.ListDrafts)))
+	mux.Handle("POST /api/drafts/{id}/approve", requireAuth(http.HandlerFunc(api.ApprovePost)))
+	mux.Handle("GET /drafts/{id}", webAuth(http.HandlerFunc(h.ShowDraft)))
+	mux.Handle("POST /drafts/{id}/revise", webAuth(http.HandlerFunc(h.ReviseDraft)))
+	mux.Handle("POST /drafts/{id}/approve", webAuth(http.HandlerFunc(h.ApproveDraft)))
+
+	return mux
+}
+
+func authLoginURL() string {
+	authURL := os.Getenv("SYND_AUTH_URL")
+	if authURL == "" {
+		authURL = "https://auth.studio.internal"
+	}
+	return authURL + "/login"
+}
+
+// webAuthRedirect wraps session validation to redirect unauthenticated browser
+// requests to the login page instead of returning 401.
+func webAuthRedirect(sv axon.SessionValidator, loginURL string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, err := r.Cookie("session")
+			if err != nil || token.Value == "" {
+				redirectToLogin(w, r, loginURL)
+				return
+			}
+
+			session, err := sv.ValidateSession(token.Value)
+			if err != nil {
+				redirectToLogin(w, r, loginURL)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), axon.SessionInfoKey, session)
+			ctx = context.WithValue(ctx, axon.UserIDKey, session.UserID())
+			ctx = context.WithValue(ctx, axon.UsernameKey, session.Username())
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func redirectToLogin(w http.ResponseWriter, r *http.Request, loginURL string) {
+	redirect := r.URL.String()
+	target := loginURL + "?redirect=" + url.QueryEscape(redirect)
+	http.Redirect(w, r, target, http.StatusFound)
 }
