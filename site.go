@@ -511,6 +511,8 @@ footer a:hover { border-color: var(--muted); }
   .wordmark { font-size: 20px; }
 }
 
+body { padding-bottom: 40px; }
+
 .webring {
   position: fixed;
   bottom: 0;
@@ -521,29 +523,22 @@ footer a:hover { border-color: var(--muted); }
   justify-content: center;
   gap: 16px;
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
-  font-family: 'DM Sans', sans-serif;
   font-size: 11px;
   letter-spacing: 0.06em;
-  background: rgba(0,0,0,0.04);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--cream);
+  border-top: 1px solid var(--rule);
   z-index: 1000;
 }
 
-@media (prefers-color-scheme: dark) {
-  .webring { background: rgba(255,255,255,0.04); }
-}
-
-.webring-name { color: inherit; opacity: 0.5; }
+.webring-name { color: var(--muted); }
 
 .webring a {
-  color: inherit;
-  opacity: 0.5;
+  color: var(--muted);
   text-decoration: none;
-  transition: opacity 0.2s;
   border-bottom: none;
+  transition: color 0.2s;
 }
-.webring a:hover { opacity: 0.7; border-bottom: none; }
+.webring a:hover { color: var(--mid); border-bottom: none; }
 {{end}}`
 
 var webringTemplate = `{{define "webring"}}
