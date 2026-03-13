@@ -203,27 +203,35 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>{{.Config.Title}}</title>
 <link rel="stylesheet" href="/style.css">
 <link rel="alternate" type="application/rss+xml" title="{{.Config.Title}}" href="/feed.xml">
 </head>
 <body>
 <header>
-<h1><a href="/">{{.Config.Title}}</a></h1>
+<div class="wordmark"><a href="/">{{.Config.Title}}</a></div>
+<div class="tagline">by {{.Config.Author}}</div>
 </header>
+<hr class="divider">
 <main>
+<div class="lbl">Posts</div>
 {{range .Posts}}
 <article>
 <time datetime="{{formatRFC3339 .CreatedAt}}">{{formatDate .CreatedAt}}</time>
 {{if eq .Kind "long"}}<h2><a href="{{postURL .}}">{{.Title}}</a></h2>
-<p>{{.Abstract}}</p>
+<p class="abstract">{{.Abstract}}</p>
 {{else if eq .Kind "image"}}<a href="{{postURL .}}"><p>{{nl2br .Body}}</p></a>
 {{else}}<p>{{nl2br .Body}}</p>
 {{end}}
 </article>
 {{end}}
 </main>
+<hr class="divider">
+<footer>
+<div class="lbl">{{.Config.Title}}</div>
+<div class="lbl">&copy; {{.Config.Author}} 2026</div>
+</footer>
 </body>
 </html>{{end}}`
 
@@ -231,7 +239,7 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>{{if .Post.Title}}{{.Post.Title}} — {{end}}{{.Config.Title}}</title>
 <meta property="og:title" content="{{if .Post.Title}}{{.Post.Title}}{{else}}{{truncate .Post.Body 80}}{{end}}">
 <meta property="og:description" content="{{if .Post.Abstract}}{{.Post.Abstract}}{{else}}{{truncate .Post.Body 200}}{{end}}">
@@ -241,72 +249,259 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 </head>
 <body>
 <header>
-<h1><a href="/">{{.Config.Title}}</a></h1>
+<div class="wordmark"><a href="/">{{.Config.Title}}</a></div>
 </header>
+<hr class="divider">
 <main>
 <article>
 <time datetime="{{formatRFC3339 .Post.CreatedAt}}">{{formatDate .Post.CreatedAt}}</time>
 {{if .Post.Title}}<h2>{{.Post.Title}}</h2>{{end}}
-{{if eq .Post.Kind "long"}}<div class="body">{{renderMarkdown .Post.Body}}</div>
+{{if eq .Post.Kind "long"}}<div class="body long-form">{{renderMarkdown .Post.Body}}</div>
 {{else}}<div class="body">{{nl2br .Post.Body}}</div>
 {{end}}
 </article>
 </main>
+<hr class="divider">
+<footer>
+<div class="lbl">{{.Config.Title}}</div>
+<div class="lbl"><a href="/">all posts</a></div>
+</footer>
 </body>
 </html>{{end}}`
 
 var feedTemplate = `{{define "feed"}}{{end}}`
 
-var styleTemplate = `{{define "style"}}:root {
-  --bg: #111114;
-  --fg: #e0e0e0;
-  --dim: #888;
-  --accent: #7ec8e3;
-  --font: 'IBM Plex Mono', 'Courier New', monospace;
+var styleTemplate = `{{define "style"}}@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
+
+:root {
+  --ink: #1C1917;
+  --cream: #FAF9F7;
+  --rule: #E7E5E4;
+  --muted: #A8A29E;
+  --mid: #78716C;
+  --stone: #57534E;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #FAF9F7;
+    --cream: #1C1917;
+    --rule: #2E2A27;
+    --muted: #A8A29E;
+    --mid: #D6D3D1;
+    --stone: #E7E5E4;
+  }
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font);
+  background: var(--cream);
+  color: var(--ink);
+  font-family: 'DM Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 16px;
-  line-height: 1.6;
+  font-weight: 400;
+  line-height: 1.7;
+  transition: background 0.7s ease, color 0.7s ease;
+}
+
+header {
   max-width: 640px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 48px 24px 24px;
 }
 
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+.wordmark {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
 
-header { margin-bottom: 2rem; }
-header h1 { font-size: 1.2rem; font-weight: 400; }
-header h1 a { color: var(--fg); }
+.wordmark a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tagline {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+
+.divider {
+  max-width: 640px;
+  margin: 0 auto;
+  border: none;
+  border-top: 1px solid var(--rule);
+}
+
+.lbl {
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+main > .lbl { margin-bottom: 32px; }
+
+a { color: var(--ink); text-decoration: none; }
+a:hover { border-bottom: 1px solid var(--ink); }
 
 article {
-  margin-bottom: 2rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid #222;
+  margin-bottom: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--rule);
 }
 
-article:last-child { border-bottom: none; }
+article:last-child { border-bottom: none; padding-bottom: 0; }
 
 article time {
   display: block;
-  color: var(--dim);
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
 }
 
 article h2 {
-  font-size: 1.1rem;
-  font-weight: 500;
-  margin-bottom: 0.5rem;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
 }
 
-article p { margin-bottom: 0.5rem; }
+article h2 a { border-bottom: 1px solid var(--rule); padding-bottom: 1px; transition: border-color 0.2s; }
+article h2 a:hover { border-color: var(--ink); }
 
-.body { white-space: pre-wrap; }
+article p, article .abstract {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--mid);
+}
+
+.body { white-space: pre-wrap; color: var(--mid); }
+
+.body.long-form {
+  white-space: normal;
+  color: var(--ink);
+}
+
+.long-form h1 {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 48px 0 16px;
+  color: var(--ink);
+}
+
+.long-form h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 40px 0 12px;
+  color: var(--ink);
+}
+
+.long-form h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 32px 0 8px;
+  color: var(--ink);
+}
+
+.long-form p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--mid);
+  margin-bottom: 16px;
+}
+
+.long-form a {
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1px;
+  transition: border-color 0.2s;
+}
+.long-form a:hover { border-color: var(--ink); }
+
+.long-form ul, .long-form ol {
+  margin: 16px 0;
+  padding-left: 24px;
+  color: var(--mid);
+}
+
+.long-form li {
+  font-size: 16px;
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+
+.long-form pre {
+  background: var(--rule);
+  border-radius: 4px;
+  padding: 16px;
+  margin: 24px 0;
+  overflow-x: auto;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.long-form code {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 14px;
+}
+
+.long-form p code {
+  background: var(--rule);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 13px;
+}
+
+.long-form blockquote {
+  border-left: 2px solid var(--rule);
+  padding-left: 16px;
+  margin: 24px 0;
+  color: var(--stone);
+  font-style: italic;
+}
+
+.long-form strong { color: var(--ink); font-weight: 600; }
+
+footer {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+footer a {
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1px;
+  transition: border-color 0.2s;
+}
+footer a:hover { border-color: var(--muted); }
+
+@media (max-width: 480px) {
+  header { padding: 32px 20px 20px; }
+  main { padding: 32px 20px; }
+  footer { padding: 20px 20px 32px; flex-direction: column; gap: 8px; }
+  .wordmark { font-size: 20px; }
+}
 {{end}}`

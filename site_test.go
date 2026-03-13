@@ -239,10 +239,10 @@ func TestSiteBuilder_Style(t *testing.T) {
 	builder.Build(testPosts(), dir)
 
 	content := readFile(t, filepath.Join(dir, "style.css"))
-	if !strings.Contains(content, "--bg: #111114") {
-		t.Error("style missing background color")
+	if !strings.Contains(content, "--cream: #FAF9F7") {
+		t.Error("style missing cream color")
 	}
-	if !strings.Contains(content, "IBM Plex Mono") {
+	if !strings.Contains(content, "DM Sans") {
 		t.Error("style missing font")
 	}
 }
