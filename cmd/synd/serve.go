@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	synd "github.com/benaskins/axon-synd"
@@ -29,6 +30,9 @@ func init() {
 
 func runServe(cmd *cobra.Command, args []string) error {
 	addr, _ := cmd.Flags().GetString("addr")
+	if p := os.Getenv("PORT"); p != "" {
+		addr = ":" + p
+	}
 	pollInterval, _ := cmd.Flags().GetDuration("poll-interval")
 	doSyndicate, _ := cmd.Flags().GetBool("syndicate")
 
@@ -59,6 +63,9 @@ func runServe(cmd *cobra.Command, args []string) error {
 	h := newWebHandler(store)
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 	mux.HandleFunc("GET /drafts/{id}", h.ShowDraft)
 	mux.HandleFunc("POST /drafts/{id}/revise", h.ReviseDraft)
 	mux.HandleFunc("POST /drafts/{id}/approve", h.ApproveDraft)
