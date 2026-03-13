@@ -81,6 +81,48 @@ func (s *PostStore) Create(ctx context.Context, kind PostKind, body string, opts
 	return post, nil
 }
 
+// Revise updates a draft post's content.
+func (s *PostStore) Revise(ctx context.Context, postID, body, title, abstract string, tags []string, revisedBy string) error {
+	now := time.Now().UTC()
+
+	revised := PostRevised{
+		PostID:    postID,
+		Title:     title,
+		Abstract:  abstract,
+		Body:      body,
+		Tags:      tags,
+		RevisedAt: now,
+		RevisedBy: revisedBy,
+	}
+
+	event := fact.Event{
+		ID:   uuid.New().String(),
+		Type: EventPostRevised,
+		Data: MarshalData(revised),
+	}
+
+	return s.events.Append(ctx, streamKey(postID), []fact.Event{event})
+}
+
+// Approve marks a draft post as approved for publishing.
+func (s *PostStore) Approve(ctx context.Context, postID, approvedBy string) error {
+	now := time.Now().UTC()
+
+	approved := PostApproved{
+		PostID:     postID,
+		ApprovedAt: now,
+		ApprovedBy: approvedBy,
+	}
+
+	event := fact.Event{
+		ID:   uuid.New().String(),
+		Type: EventPostApproved,
+		Data: MarshalData(approved),
+	}
+
+	return s.events.Append(ctx, streamKey(postID), []fact.Event{event})
+}
+
 // Publish marks a post as published at the given URL.
 func (s *PostStore) Publish(ctx context.Context, postID, url string) error {
 	now := time.Now().UTC()
@@ -197,6 +239,7 @@ func (p *PostProjection) Handle(_ context.Context, event fact.Event) error {
 		p.posts[data.ID] = &Post{
 			ID:           data.ID,
 			Kind:         data.Kind,
+			Status:       StatusDraft,
 			Title:        data.Title,
 			Abstract:     data.Abstract,
 			Body:         data.Body,
@@ -207,6 +250,39 @@ func (p *PostProjection) Handle(_ context.Context, event fact.Event) error {
 		}
 		p.mu.Unlock()
 
+	case EventPostRevised:
+		var data PostRevised
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return fmt.Errorf("unmarshal post.revised: %w", err)
+		}
+		p.mu.Lock()
+		if post, ok := p.posts[data.PostID]; ok {
+			post.Body = data.Body
+			if data.Title != "" {
+				post.Title = data.Title
+			}
+			if data.Abstract != "" {
+				post.Abstract = data.Abstract
+			}
+			if data.Tags != nil {
+				post.Tags = data.Tags
+			}
+		}
+		p.mu.Unlock()
+
+	case EventPostApproved:
+		var data PostApproved
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return fmt.Errorf("unmarshal post.approved: %w", err)
+		}
+		p.mu.Lock()
+		if post, ok := p.posts[data.PostID]; ok {
+			post.Status = StatusApproved
+			post.ApprovedAt = data.ApprovedAt
+			post.ApprovedBy = data.ApprovedBy
+		}
+		p.mu.Unlock()
+
 	case EventPostPublished:
 		var data PostPublished
 		if err := json.Unmarshal(event.Data, &data); err != nil {
@@ -214,6 +290,7 @@ func (p *PostProjection) Handle(_ context.Context, event fact.Event) error {
 		}
 		p.mu.Lock()
 		if post, ok := p.posts[data.ID]; ok {
+			post.Status = StatusPublished
 			post.PublishedAt = data.PublishedAt
 		}
 		p.mu.Unlock()
@@ -316,6 +393,36 @@ func (p *PostProjection) EngagementFor(postID string) []Engagement {
 	out := make([]Engagement, 0, len(platforms))
 	for _, e := range platforms {
 		out = append(out, *e)
+	}
+	return out
+}
+
+// Drafts returns posts with status == draft.
+func (p *PostProjection) Drafts() []Post {
+	p.init()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	var out []Post
+	for _, post := range p.posts {
+		if post.Status == StatusDraft {
+			out = append(out, *post)
+		}
+	}
+	return out
+}
+
+// ApprovedPosts returns posts that are approved but not yet published.
+func (p *PostProjection) ApprovedPosts() []Post {
+	p.init()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	var out []Post
+	for _, post := range p.posts {
+		if post.Status == StatusApproved {
+			out = append(out, *post)
+		}
 	}
 	return out
 }
