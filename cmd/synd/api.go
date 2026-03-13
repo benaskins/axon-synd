@@ -170,6 +170,41 @@ func (h *apiHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "deleted", "id": id})
 }
 
+type revisePostRequest struct {
+	Body     string   `json:"body"`
+	Title    string   `json:"title,omitempty"`
+	Abstract string   `json:"abstract,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+}
+
+// RevisePost handles PUT /api/posts/{id}
+func (h *apiHandler) RevisePost(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	post := h.store.Get(id)
+	if post == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	var req revisePostRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	revisedBy := axon.Username(r.Context())
+
+	if err := h.store.Revise(r.Context(), id, req.Body, req.Title, req.Abstract, req.Tags, revisedBy); err != nil {
+		slog.Error("revise post failed", "error", err, "id", id)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "revised", "id": id})
+}
+
 // serviceURL returns the synd service URL, checking SYND_SERVICE_URL env var first.
 func serviceURL() string {
 	if u := os.Getenv("SYND_SERVICE_URL"); u != "" {

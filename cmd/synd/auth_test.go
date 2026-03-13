@@ -148,6 +148,77 @@ func TestAPIErrors_DoNotLeakInternals(t *testing.T) {
 	}
 }
 
+func TestRevisePost_UpdatesPublishedPost(t *testing.T) {
+	store, _ := newMemoryStore()
+	ctx := context.Background()
+	post, _ := store.Create(ctx, synd.Short, "original text", synd.WithApprovalToken("tok"))
+	store.Approve(ctx, post.ID, "ben")
+	store.Publish(ctx, post.ID, "https://example.com/posts/"+post.ID)
+
+	sv := &stubValidator{valid: true, username: "ben"}
+	mux := buildMux(store, sv)
+
+	body := `{"body":"updated text","title":"New Title"}`
+	req := httptest.NewRequest("PUT", "/api/posts/"+post.ID, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: "session", Value: "valid"})
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", w.Code, w.Body.String())
+	}
+
+	got := store.Get(post.ID)
+	if got.Body != "updated text" {
+		t.Errorf("Body = %q, want %q", got.Body, "updated text")
+	}
+	if got.Title != "New Title" {
+		t.Errorf("Title = %q, want %q", got.Title, "New Title")
+	}
+}
+
+func TestRevisePost_NotFound(t *testing.T) {
+	store, _ := newMemoryStore()
+	sv := &stubValidator{valid: true, username: "ben"}
+	mux := buildMux(store, sv)
+
+	body := `{"body":"updated"}`
+	req := httptest.NewRequest("PUT", "/api/posts/nonexistent", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: "session", Value: "valid"})
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestRebuildSite_Endpoint(t *testing.T) {
+	store, _ := newMemoryStore()
+	sv := &stubValidator{valid: true, username: "ben"}
+
+	rebuilt := false
+	rebuildFn := func() error {
+		rebuilt = true
+		return nil
+	}
+	mux := buildMux(store, sv, withRebuild(rebuildFn))
+
+	req := httptest.NewRequest("POST", "/api/site/rebuild", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: "valid"})
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", w.Code, w.Body.String())
+	}
+	if !rebuilt {
+		t.Error("rebuild function was not called")
+	}
+}
+
 func TestWebEndpoint_RedirectsUnauthenticated(t *testing.T) {
 	store, _ := newMemoryStore()
 	sv := &stubValidator{valid: false}

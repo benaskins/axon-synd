@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -70,7 +71,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	}
 	authClient := axon.NewAuthClientPlain(authURL)
 
-	mux := buildMux(store, authClient)
+	mux := buildMux(store, authClient, withRebuild(w.rebuildSite))
 
 	slog.Info("serving", "addr", addr, "auth_url", authURL)
 	fmt.Printf("listening on %s\n", addr)
@@ -133,10 +134,28 @@ func newMemoryStore() (*synd.PostStore, *synd.PostProjection) {
 	return store, projection
 }
 
+// muxConfig holds optional configuration for buildMux.
+type muxConfig struct {
+	rebuildFn func() error
+}
+
+// muxOption configures buildMux.
+type muxOption func(*muxConfig)
+
+// withRebuild registers a site rebuild function for the POST /api/site/rebuild endpoint.
+func withRebuild(fn func() error) muxOption {
+	return func(c *muxConfig) { c.rebuildFn = fn }
+}
+
 // buildMux creates the HTTP mux with auth middleware on all routes except /health.
 // API routes return 401 for unauthenticated requests.
 // Web routes redirect to the login page for unauthenticated requests.
-func buildMux(store *synd.PostStore, sv axon.SessionValidator) *http.ServeMux {
+func buildMux(store *synd.PostStore, sv axon.SessionValidator, opts ...muxOption) *http.ServeMux {
+	var cfg muxConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
+
 	requireAuth := axon.RequireAuth(sv)
 	loginURL := authLoginURL()
 	webAuth := webAuthRedirect(sv, loginURL)
@@ -151,10 +170,24 @@ func buildMux(store *synd.PostStore, sv axon.SessionValidator) *http.ServeMux {
 	mux.Handle("POST /api/posts", requireAuth(http.HandlerFunc(api.CreatePost)))
 	mux.Handle("GET /api/drafts", requireAuth(http.HandlerFunc(api.ListDrafts)))
 	mux.Handle("POST /api/drafts/{id}/approve", requireAuth(http.HandlerFunc(api.ApprovePost)))
+	mux.Handle("PUT /api/posts/{id}", requireAuth(http.HandlerFunc(api.RevisePost)))
 	mux.Handle("DELETE /api/posts/{id}", requireAuth(http.HandlerFunc(api.DeletePost)))
 	mux.Handle("GET /drafts/{id}", webAuth(http.HandlerFunc(h.ShowDraft)))
 	mux.Handle("POST /drafts/{id}/revise", webAuth(http.HandlerFunc(h.ReviseDraft)))
 	mux.Handle("POST /drafts/{id}/approve", webAuth(http.HandlerFunc(h.ApproveDraft)))
+
+	if cfg.rebuildFn != nil {
+		rebuildFn := cfg.rebuildFn
+		mux.Handle("POST /api/site/rebuild", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if err := rebuildFn(); err != nil {
+				slog.Error("site rebuild failed", "error", err)
+				http.Error(w, "rebuild failed", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "rebuilt"})
+		})))
+	}
 
 	return mux
 }
