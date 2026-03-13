@@ -148,6 +148,28 @@ func (h *apiHandler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "approved", "id": id})
 }
 
+// DeletePost handles DELETE /api/posts/{id}
+func (h *apiHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	post := h.store.Get(id)
+	if post == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	deletedBy := axon.Username(r.Context())
+
+	if err := h.store.Delete(r.Context(), id, deletedBy); err != nil {
+		slog.Error("delete post failed", "error", err, "id", id)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "deleted", "id": id})
+}
+
 // serviceURL returns the synd service URL, checking SYND_SERVICE_URL env var first.
 func serviceURL() string {
 	if u := os.Getenv("SYND_SERVICE_URL"); u != "" {
