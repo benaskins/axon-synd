@@ -244,6 +244,137 @@ func TestPostStore_UnsyncedPosts(t *testing.T) {
 	}
 }
 
+func TestPostStore_CreateIsDraft(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	post, _ := store.Create(ctx, Short, "a draft")
+	if post.Status != StatusDraft {
+		t.Errorf("Status = %q, want %q", post.Status, StatusDraft)
+	}
+}
+
+func TestPostStore_Revise(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	post, _ := store.Create(ctx, Short, "original text")
+
+	err := store.Revise(ctx, post.ID, "revised text", "", "", nil, "ben")
+	if err != nil {
+		t.Fatalf("Revise: %v", err)
+	}
+
+	got := store.Get(post.ID)
+	if got.Body != "revised text" {
+		t.Errorf("Body = %q, want %q", got.Body, "revised text")
+	}
+	if got.Status != StatusDraft {
+		t.Errorf("Status = %q, want %q after revise", got.Status, StatusDraft)
+	}
+}
+
+func TestPostStore_ReviseLong(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	post, _ := store.Create(ctx, Long, "# Original\n\nContent",
+		WithTitle("Original"),
+		WithAbstract("First abstract"),
+	)
+
+	err := store.Revise(ctx, post.ID, "# Revised\n\nNew content", "Revised", "Better abstract", []string{"go"}, "ben")
+	if err != nil {
+		t.Fatalf("Revise: %v", err)
+	}
+
+	got := store.Get(post.ID)
+	if got.Title != "Revised" {
+		t.Errorf("Title = %q", got.Title)
+	}
+	if got.Abstract != "Better abstract" {
+		t.Errorf("Abstract = %q", got.Abstract)
+	}
+	if got.Body != "# Revised\n\nNew content" {
+		t.Errorf("Body = %q", got.Body)
+	}
+	if len(got.Tags) != 1 || got.Tags[0] != "go" {
+		t.Errorf("Tags = %v", got.Tags)
+	}
+}
+
+func TestPostStore_Approve(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	post, _ := store.Create(ctx, Short, "approve me")
+
+	err := store.Approve(ctx, post.ID, "ben")
+	if err != nil {
+		t.Fatalf("Approve: %v", err)
+	}
+
+	got := store.Get(post.ID)
+	if got.Status != StatusApproved {
+		t.Errorf("Status = %q, want %q", got.Status, StatusApproved)
+	}
+	if got.ApprovedAt.IsZero() {
+		t.Error("expected non-zero ApprovedAt")
+	}
+	if got.ApprovedBy != "ben" {
+		t.Errorf("ApprovedBy = %q", got.ApprovedBy)
+	}
+}
+
+func TestPostStore_PublishSetsStatus(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	post, _ := store.Create(ctx, Short, "publish me")
+	store.Approve(ctx, post.ID, "ben")
+	store.Publish(ctx, post.ID, "https://example.com/posts/"+post.ID)
+
+	got := store.Get(post.ID)
+	if got.Status != StatusPublished {
+		t.Errorf("Status = %q, want %q", got.Status, StatusPublished)
+	}
+}
+
+func TestPostProjection_Drafts(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	store.Create(ctx, Short, "draft one")
+	store.Create(ctx, Short, "draft two")
+	p3, _ := store.Create(ctx, Short, "approved")
+	store.Approve(ctx, p3.ID, "ben")
+
+	drafts := store.Projection().Drafts()
+	if len(drafts) != 2 {
+		t.Fatalf("got %d drafts, want 2", len(drafts))
+	}
+}
+
+func TestPostProjection_ApprovedPosts(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	store.Create(ctx, Short, "still draft")
+	p2, _ := store.Create(ctx, Short, "approved not published")
+	store.Approve(ctx, p2.ID, "ben")
+	p3, _ := store.Create(ctx, Short, "published")
+	store.Approve(ctx, p3.ID, "ben")
+	store.Publish(ctx, p3.ID, "https://example.com/posts/"+p3.ID)
+
+	approved := store.Projection().ApprovedPosts()
+	if len(approved) != 1 {
+		t.Fatalf("got %d approved posts, want 1", len(approved))
+	}
+	if approved[0].ID != p2.ID {
+		t.Errorf("approved post = %q, want %q", approved[0].ID, p2.ID)
+	}
+}
+
 func TestPostStore_ImportedPostSkipsSourcPlatform(t *testing.T) {
 	store := newTestStore(t)
 	ctx := context.Background()

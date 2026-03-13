@@ -16,21 +16,33 @@ const (
 	Image PostKind = "image"
 )
 
-// Post is the canonical representation of a published piece of content.
+// PostStatus tracks where a post is in its lifecycle.
+type PostStatus string
+
+const (
+	StatusDraft     PostStatus = "draft"
+	StatusApproved  PostStatus = "approved"
+	StatusPublished PostStatus = "published"
+)
+
+// Post is the canonical representation of a piece of content.
 type Post struct {
-	ID        string   `json:"id"`
-	Kind      PostKind `json:"kind"`
-	Title     string   `json:"title,omitempty"`
-	Abstract  string   `json:"abstract,omitempty"`
-	Body      string   `json:"body"`
-	ImagePath string   `json:"image_path,omitempty"`
-	Tags      []string `json:"tags,omitempty"`
+	ID        string     `json:"id"`
+	Kind      PostKind   `json:"kind"`
+	Status    PostStatus `json:"status"`
+	Title     string     `json:"title,omitempty"`
+	Abstract  string     `json:"abstract,omitempty"`
+	Body      string     `json:"body"`
+	ImagePath string     `json:"image_path,omitempty"`
+	Tags      []string   `json:"tags,omitempty"`
 
 	// ImportedFrom records the source platform for archived posts.
 	// Empty for posts authored locally.
 	ImportedFrom string `json:"imported_from,omitempty"`
 
 	CreatedAt   time.Time `json:"created_at"`
+	ApprovedAt  time.Time `json:"approved_at,omitempty"`
+	ApprovedBy  string    `json:"approved_by,omitempty"`
 	PublishedAt time.Time `json:"published_at,omitempty"`
 }
 
@@ -66,6 +78,8 @@ const (
 // Event types for post lifecycle.
 const (
 	EventPostCreated          = "post.created"
+	EventPostRevised          = "post.revised"
+	EventPostApproved         = "post.approved"
 	EventPostPublished        = "post.published"
 	EventPostSyndicated       = "post.syndicated"
 	EventPostEngagementUpdate = "post.engagement_updated"
@@ -82,6 +96,24 @@ type PostCreated struct {
 	Tags         []string `json:"tags,omitempty"`
 	ImportedFrom string   `json:"imported_from,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+// PostRevised is emitted when a draft post is edited.
+type PostRevised struct {
+	PostID    string    `json:"post_id"`
+	Title     string    `json:"title,omitempty"`
+	Abstract  string    `json:"abstract,omitempty"`
+	Body      string    `json:"body"`
+	Tags      []string  `json:"tags,omitempty"`
+	RevisedAt time.Time `json:"revised_at"`
+	RevisedBy string    `json:"revised_by,omitempty"`
+}
+
+// PostApproved is emitted when a human approves a draft for publishing.
+type PostApproved struct {
+	PostID     string    `json:"post_id"`
+	ApprovedAt time.Time `json:"approved_at"`
+	ApprovedBy string    `json:"approved_by"`
 }
 
 // PostPublished is emitted when the static site is rebuilt and pushed.
