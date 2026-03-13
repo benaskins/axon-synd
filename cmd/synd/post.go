@@ -31,6 +31,7 @@ func init() {
 	postCmd.Flags().String("abstract", "", "abstract for long-form posts")
 	postCmd.Flags().StringSlice("tags", nil, "tags for the post")
 	postCmd.Flags().Bool("no-publish", false, "create post without publishing to site")
+	postCmd.Flags().Bool("syndicate", false, "syndicate to all configured platforms after publishing")
 	rootCmd.AddCommand(postCmd)
 }
 
@@ -113,6 +114,22 @@ func runPost(cmd *cobra.Command, args []string) error {
 		fmt.Printf("published: %s\n", url)
 	} else {
 		fmt.Println("published (no site changes)")
+	}
+
+	// Syndicate if requested
+	doSyndicate, _ := cmd.Flags().GetBool("syndicate")
+	if doSyndicate {
+		// Refresh post after publish
+		post = store.Get(post.ID)
+		config, err := blueskyConfigFromEnv()
+		if err == nil {
+			if pds := os.Getenv("SYND_BLUESKY_PDS"); pds != "" {
+				config.PDS = pds
+			}
+			if err := syndicateToBluesky(ctx, store, post, baseURL(cmd), config); err != nil {
+				return fmt.Errorf("bluesky: %w", err)
+			}
+		}
 	}
 
 	return nil
