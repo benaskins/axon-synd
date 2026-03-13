@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -70,7 +71,8 @@ func (h *apiHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	post, err := h.store.Create(r.Context(), req.Kind, req.Body, opts...)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("create: %v", err), http.StatusInternalServerError)
+		slog.Error("create post failed", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
@@ -137,7 +139,8 @@ func (h *apiHandler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 	approvedBy := axon.Username(r.Context())
 
 	if err := h.store.Approve(r.Context(), id, approvedBy); err != nil {
-		http.Error(w, fmt.Sprintf("approve: %v", err), http.StatusInternalServerError)
+		slog.Error("approve post failed", "error", err, "id", id)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
