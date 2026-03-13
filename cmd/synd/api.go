@@ -29,10 +29,9 @@ type createPostRequest struct {
 }
 
 type postResponse struct {
-	ID            string `json:"id"`
-	Kind          string `json:"kind"`
-	Status        string `json:"status"`
-	ApprovalToken string `json:"approval_token,omitempty"`
+	ID     string `json:"id"`
+	Kind   string `json:"kind"`
+	Status string `json:"status"`
 }
 
 // CreatePost handles POST /api/posts
@@ -89,10 +88,9 @@ func (h *apiHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(postResponse{
-		ID:            post.ID,
-		Kind:          string(post.Kind),
-		Status:        string(post.Status),
-		ApprovalToken: post.ApprovalToken,
+		ID:     post.ID,
+		Kind:   string(post.Kind),
+		Status: string(post.Status),
 	})
 }
 

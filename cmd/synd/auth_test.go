@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/benaskins/axon"
@@ -91,6 +93,30 @@ func TestApprovePost_UsesAuthIdentity(t *testing.T) {
 	got := store.Get(post.ID)
 	if got.ApprovedBy != "alice" {
 		t.Errorf("ApprovedBy = %q, want %q", got.ApprovedBy, "alice")
+	}
+}
+
+func TestCreatePost_DoesNotLeakApprovalToken(t *testing.T) {
+	store, _ := newMemoryStore()
+	sv := &stubValidator{valid: true, username: "ben"}
+	mux := buildMux(store, sv)
+
+	body := `{"kind":"short","body":"test post"}`
+	req := httptest.NewRequest("POST", "/api/posts", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: "session", Value: "valid"})
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201; body: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if _, ok := resp["approval_token"]; ok {
+		t.Error("response should not contain approval_token")
 	}
 }
 
