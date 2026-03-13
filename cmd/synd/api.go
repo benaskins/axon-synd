@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/benaskins/axon"
 	gate "github.com/benaskins/axon-gate"
 	synd "github.com/benaskins/axon-synd"
 )
@@ -135,10 +136,7 @@ func (h *apiHandler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	approvedBy := "cli"
-	if ab := r.URL.Query().Get("by"); ab != "" {
-		approvedBy = ab
-	}
+	approvedBy := axon.Username(r.Context())
 
 	if err := h.store.Approve(r.Context(), id, approvedBy); err != nil {
 		http.Error(w, fmt.Sprintf("approve: %v", err), http.StatusInternalServerError)
