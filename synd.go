@@ -40,6 +40,9 @@ type Post struct {
 	// Empty for posts authored locally.
 	ImportedFrom string `json:"imported_from,omitempty"`
 
+	// ApprovalToken is a one-time token for the approval gate URL.
+	ApprovalToken string `json:"approval_token,omitempty"`
+
 	CreatedAt   time.Time `json:"created_at"`
 	ApprovedAt  time.Time `json:"approved_at,omitempty"`
 	ApprovedBy  string    `json:"approved_by,omitempty"`
@@ -87,15 +90,16 @@ const (
 
 // PostCreated is emitted when a new post is authored.
 type PostCreated struct {
-	ID           string   `json:"id"`
-	Kind         PostKind `json:"kind"`
-	Title        string   `json:"title,omitempty"`
-	Abstract     string   `json:"abstract,omitempty"`
-	Body         string   `json:"body"`
-	ImagePath    string   `json:"image_path,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	ImportedFrom string   `json:"imported_from,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID            string   `json:"id"`
+	Kind          PostKind `json:"kind"`
+	Title         string   `json:"title,omitempty"`
+	Abstract      string   `json:"abstract,omitempty"`
+	Body          string   `json:"body"`
+	ImagePath     string   `json:"image_path,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
+	ImportedFrom  string   `json:"imported_from,omitempty"`
+	ApprovalToken string   `json:"approval_token,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // PostRevised is emitted when a draft post is edited.

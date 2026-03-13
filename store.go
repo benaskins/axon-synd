@@ -53,15 +53,16 @@ func (s *PostStore) Create(ctx context.Context, kind PostKind, body string, opts
 	now := time.Now().UTC()
 
 	created := PostCreated{
-		ID:           id,
-		Kind:         kind,
-		Title:        cfg.title,
-		Abstract:     cfg.abstract,
-		Body:         body,
-		ImagePath:    cfg.imagePath,
-		Tags:         cfg.tags,
-		ImportedFrom: cfg.importedFrom,
-		CreatedAt:    now,
+		ID:            id,
+		Kind:          kind,
+		Title:         cfg.title,
+		Abstract:      cfg.abstract,
+		Body:          body,
+		ImagePath:     cfg.imagePath,
+		Tags:          cfg.tags,
+		ImportedFrom:  cfg.importedFrom,
+		ApprovalToken: cfg.approvalToken,
+		CreatedAt:     now,
 	}
 
 	event := fact.Event{
@@ -204,18 +205,20 @@ func streamKey(postID string) string {
 type PostOption func(*postConfig)
 
 type postConfig struct {
-	title        string
-	abstract     string
-	imagePath    string
-	tags         []string
-	importedFrom string
+	title         string
+	abstract      string
+	imagePath     string
+	tags          []string
+	importedFrom  string
+	approvalToken string
 }
 
 func WithTitle(t string) PostOption        { return func(c *postConfig) { c.title = t } }
 func WithAbstract(a string) PostOption     { return func(c *postConfig) { c.abstract = a } }
 func WithImagePath(p string) PostOption    { return func(c *postConfig) { c.imagePath = p } }
 func WithTags(t ...string) PostOption      { return func(c *postConfig) { c.tags = t } }
-func WithImportedFrom(p string) PostOption { return func(c *postConfig) { c.importedFrom = p } }
+func WithImportedFrom(p string) PostOption  { return func(c *postConfig) { c.importedFrom = p } }
+func WithApprovalToken(t string) PostOption { return func(c *postConfig) { c.approvalToken = t } }
 
 // PostProjection is a read model built from post events.
 type PostProjection struct {
@@ -237,16 +240,17 @@ func (p *PostProjection) Handle(_ context.Context, event fact.Event) error {
 		}
 		p.mu.Lock()
 		p.posts[data.ID] = &Post{
-			ID:           data.ID,
-			Kind:         data.Kind,
-			Status:       StatusDraft,
-			Title:        data.Title,
-			Abstract:     data.Abstract,
-			Body:         data.Body,
-			ImagePath:    data.ImagePath,
-			Tags:         data.Tags,
-			ImportedFrom: data.ImportedFrom,
-			CreatedAt:    data.CreatedAt,
+			ID:            data.ID,
+			Kind:          data.Kind,
+			Status:        StatusDraft,
+			Title:         data.Title,
+			Abstract:      data.Abstract,
+			Body:          data.Body,
+			ImagePath:     data.ImagePath,
+			Tags:          data.Tags,
+			ImportedFrom:  data.ImportedFrom,
+			ApprovalToken: data.ApprovalToken,
+			CreatedAt:     data.CreatedAt,
 		}
 		p.mu.Unlock()
 
