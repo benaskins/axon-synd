@@ -95,5 +95,8 @@ func (h *webHandler) ApproveDraft(w http.ResponseWriter, r *http.Request) {
 }
 
 func validToken(provided, stored string) bool {
+	if provided == "" || stored == "" {
+		return false
+	}
 	return subtle.ConstantTimeCompare([]byte(provided), []byte(stored)) == 1
 }
