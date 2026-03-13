@@ -47,6 +47,15 @@ func runSynd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if platform == "" || platform == "mastodon" {
+		config, err := mastodonConfigFromEnv()
+		if err == nil {
+			if err := syndicateToMastodon(ctx, store, post, baseURL(cmd), config); err != nil {
+				return fmt.Errorf("mastodon: %w", err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -60,6 +69,71 @@ func blueskyConfigFromEnv() (synd.BlueskyConfig, error) {
 		Handle:   handle,
 		Password: password,
 	}, nil
+}
+
+func mastodonConfigFromEnv() (synd.MastodonConfig, error) {
+	instance := os.Getenv("SYND_MASTODON_INSTANCE")
+	token := os.Getenv("SYND_MASTODON_TOKEN")
+	if instance == "" || token == "" {
+		return synd.MastodonConfig{}, fmt.Errorf("SYND_MASTODON_INSTANCE and SYND_MASTODON_TOKEN must be set")
+	}
+	return synd.MastodonConfig{
+		Instance:    instance,
+		AccessToken: token,
+	}, nil
+}
+
+// syndicateToMastodon posts to Mastodon and records the syndication event.
+func syndicateToMastodon(ctx context.Context, store *synd.PostStore, post *synd.Post, siteBaseURL string, config synd.MastodonConfig) error {
+	if post.ImportedFrom == string(synd.Mastodon) {
+		return nil
+	}
+
+	client := synd.NewMastodonClient(config)
+
+	if err := client.VerifyCredentials(ctx); err != nil {
+		return err
+	}
+
+	var id, statusURL string
+	var err error
+
+	switch post.Kind {
+	case synd.Long:
+		text := post.Abstract
+		if text == "" {
+			text = post.Title
+		}
+		url := fmt.Sprintf("%s/posts/%s", siteBaseURL, post.ID)
+		id, statusURL, err = client.PostWithLink(ctx, text, url)
+
+	case synd.Image:
+		if post.ImagePath != "" {
+			id, statusURL, err = client.PostWithImage(ctx, post.Body, post.ImagePath, post.Body)
+		} else {
+			id, statusURL, err = client.Post(ctx, post.Body)
+		}
+
+	default:
+		if len([]rune(post.Body)) <= 500 {
+			id, statusURL, err = client.Post(ctx, post.Body)
+		} else {
+			url := fmt.Sprintf("%s/posts/%s", siteBaseURL, post.ID)
+			truncated := string([]rune(post.Body)[:450]) + "..."
+			id, statusURL, err = client.PostWithLink(ctx, truncated, url)
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if err := store.Syndicate(ctx, post.ID, synd.Mastodon, id, statusURL); err != nil {
+		return fmt.Errorf("record syndication: %w", err)
+	}
+
+	fmt.Printf("mastodon: %s\n", statusURL)
+	return nil
 }
 
 // syndicateToBluesky posts to Bluesky and records the syndication event.

@@ -222,3 +222,143 @@ func TestSyndicateBluesky_AuthFailure(t *testing.T) {
 		t.Fatal("expected auth error")
 	}
 }
+
+func TestSyndicateMastodon_ShortPost(t *testing.T) {
+	var capturedStatus string
+	srv := mastodonTestServer(t, func(status string, _ []string) {
+		capturedStatus = status
+	})
+	defer srv.Close()
+
+	store, _ := newStore()
+	ctx := context.Background()
+	post, err := store.Create(ctx, synd.Short, "hello mastodon")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	store.Publish(ctx, post.ID, "https://example.com/posts/"+post.ID)
+
+	err = syndicateToMastodon(ctx, store, post, "https://example.com", synd.MastodonConfig{
+		Instance:    srv.URL,
+		AccessToken: "test-token",
+	})
+	if err != nil {
+		t.Fatalf("syndicateToMastodon: %v", err)
+	}
+
+	if capturedStatus != "hello mastodon" {
+		t.Errorf("posted status = %q, want %q", capturedStatus, "hello mastodon")
+	}
+
+	records := store.Projection().Syndications(post.ID)
+	if len(records) != 1 {
+		t.Fatalf("got %d syndication records, want 1", len(records))
+	}
+	if records[0].Platform != string(synd.Mastodon) {
+		t.Errorf("platform = %q", records[0].Platform)
+	}
+}
+
+func TestSyndicateMastodon_LongPost(t *testing.T) {
+	var capturedStatus string
+	srv := mastodonTestServer(t, func(status string, _ []string) {
+		capturedStatus = status
+	})
+	defer srv.Close()
+
+	store, _ := newStore()
+	ctx := context.Background()
+	post, _ := store.Create(ctx, synd.Long, "# Full Article\n\nLong content here.",
+		synd.WithTitle("Full Article"),
+		synd.WithAbstract("A short summary."),
+	)
+	store.Publish(ctx, post.ID, "https://example.com/posts/"+post.ID)
+
+	err := syndicateToMastodon(ctx, store, post, "https://example.com", synd.MastodonConfig{
+		Instance:    srv.URL,
+		AccessToken: "test-token",
+	})
+	if err != nil {
+		t.Fatalf("syndicateToMastodon: %v", err)
+	}
+
+	if capturedStatus == "" {
+		t.Fatal("no status posted")
+	}
+	if capturedStatus == post.Body {
+		t.Error("long post should not send full body to mastodon")
+	}
+	// Should contain the link
+	if !contains(capturedStatus, "https://example.com/posts/") {
+		t.Error("long post should include a link to the canonical post")
+	}
+}
+
+func TestSyndicateMastodon_SkipsImportedPost(t *testing.T) {
+	called := false
+	srv := mastodonTestServer(t, func(_ string, _ []string) {
+		called = true
+	})
+	defer srv.Close()
+
+	store, _ := newStore()
+	ctx := context.Background()
+	post, _ := store.Create(ctx, synd.Short, "old mastodon post", synd.WithImportedFrom("mastodon"))
+
+	err := syndicateToMastodon(ctx, store, post, "https://example.com", synd.MastodonConfig{
+		Instance:    srv.URL,
+		AccessToken: "test-token",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if called {
+		t.Error("should not post to mastodon for a post imported from mastodon")
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstring(s, substr))
+}
+
+func containsSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+func mastodonTestServer(t *testing.T, onPost func(status string, mediaIDs []string)) *httptest.Server {
+	t.Helper()
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/accounts/verify_credentials":
+			json.NewEncoder(w).Encode(map[string]any{
+				"id":       "109876",
+				"username": "genlevel",
+			})
+		case "/api/v1/statuses":
+			r.ParseForm()
+			status := r.FormValue("status")
+			mediaIDs := r.Form["media_ids[]"]
+			if onPost != nil {
+				onPost(status, mediaIDs)
+			}
+			json.NewEncoder(w).Encode(map[string]any{
+				"id":  "12345",
+				"url": srv.URL + "/@genlevel/12345",
+			})
+		case "/api/v2/media":
+			json.NewEncoder(w).Encode(map[string]any{
+				"id":   "media-99",
+				"type": "image",
+			})
+		default:
+			http.Error(w, "not found", 404)
+		}
+	}))
+	return srv
+}
