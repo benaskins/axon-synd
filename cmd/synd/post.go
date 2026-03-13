@@ -9,6 +9,7 @@ import (
 
 	"github.com/benaskins/axon"
 	fact "github.com/benaskins/axon-fact"
+	gate "github.com/benaskins/axon-gate"
 	synd "github.com/benaskins/axon-synd"
 	"github.com/spf13/cobra"
 )
@@ -48,32 +49,44 @@ func runPost(cmd *cobra.Command, args []string) error {
 	store, projection := newStoreFromCmd(cmd)
 	ctx := cmd.Context()
 
+	// Generate approval token for the draft gate
+	var tokenOpt synd.PostOption
+	if !immediate {
+		token, err := gate.GenerateToken()
+		if err != nil {
+			return fmt.Errorf("generate token: %w", err)
+		}
+		tokenOpt = synd.WithApprovalToken(token)
+	}
+
 	var post *synd.Post
 	var err error
+
+	var extraOpts []synd.PostOption
+	if tokenOpt != nil {
+		extraOpts = append(extraOpts, tokenOpt)
+	}
 
 	switch {
 	case isLong:
 		if len(args) < 1 {
 			return fmt.Errorf("--long requires a markdown file path")
 		}
-		post, err = createLongPost(ctx, store, args[0], title, abstract, tags)
+		post, err = createLongPost(ctx, store, args[0], title, abstract, tags, extraOpts...)
 	case imagePath != "":
 		body := strings.Join(args, " ")
 		if body == "" {
 			return fmt.Errorf("--image requires caption text")
 		}
-		post, err = store.Create(ctx, synd.Image, body,
-			synd.WithImagePath(imagePath),
-			synd.WithTags(tags...),
-		)
+		opts := append([]synd.PostOption{synd.WithImagePath(imagePath), synd.WithTags(tags...)}, extraOpts...)
+		post, err = store.Create(ctx, synd.Image, body, opts...)
 	default:
 		body := strings.Join(args, " ")
 		if body == "" {
 			return fmt.Errorf("post text required")
 		}
-		post, err = store.Create(ctx, synd.Short, body,
-			synd.WithTags(tags...),
-		)
+		opts := append([]synd.PostOption{synd.WithTags(tags...)}, extraOpts...)
+		post, err = store.Create(ctx, synd.Short, body, opts...)
 	}
 
 	if err != nil {
@@ -82,6 +95,14 @@ func runPost(cmd *cobra.Command, args []string) error {
 
 	if !immediate {
 		fmt.Printf("draft: %s (%s) — awaiting approval\n", post.ID, post.Kind)
+
+		// Send Signal notification if configured
+		if signal, ok := signalClientFromEnv(); ok {
+			if err := sendDraftNotification(signal, post, baseURL(cmd)); err != nil {
+				fmt.Printf("warning: signal notification failed: %v\n", err)
+			}
+		}
+
 		return nil
 	}
 
@@ -156,7 +177,7 @@ func publishPost(cmd *cobra.Command, ctx context.Context, store *synd.PostStore,
 	return nil
 }
 
-func createLongPost(ctx context.Context, store *synd.PostStore, path, title, abstract string, tags []string) (*synd.Post, error) {
+func createLongPost(ctx context.Context, store *synd.PostStore, path, title, abstract string, tags []string, extraOpts ...synd.PostOption) (*synd.Post, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
@@ -170,11 +191,18 @@ func createLongPost(ctx context.Context, store *synd.PostStore, path, title, abs
 		abstract = extractAbstract(body)
 	}
 
-	return store.Create(ctx, synd.Long, body,
+	opts := []synd.PostOption{
 		synd.WithTitle(title),
 		synd.WithAbstract(abstract),
 		synd.WithTags(tags...),
-	)
+	}
+	for _, o := range extraOpts {
+		if o != nil {
+			opts = append(opts, o)
+		}
+	}
+
+	return store.Create(ctx, synd.Long, body, opts...)
 }
 
 func extractTitle(md string) string {
