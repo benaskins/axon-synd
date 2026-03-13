@@ -104,6 +104,28 @@ func (w *publishWorker) publishOne(ctx context.Context, post *synd.Post) error {
 	return nil
 }
 
+// rebuildSite rebuilds the static site from all posts and pushes to git.
+func (w *publishWorker) rebuildSite() error {
+	builder := synd.NewSiteBuilder(synd.SiteConfig{
+		Title:   "Generative Plane",
+		BaseURL: w.baseURL,
+		Author:  "Benjamin Askins",
+	})
+
+	allPosts := w.projection.List()
+	if err := builder.Build(allPosts, w.siteDir); err != nil {
+		return fmt.Errorf("build site: %w", err)
+	}
+
+	_, err := synd.GitPublish(w.siteDir, "rebuild: site updated")
+	if err != nil {
+		return fmt.Errorf("git publish: %w", err)
+	}
+
+	slog.Info("site rebuilt", "posts", len(allPosts))
+	return nil
+}
+
 func (w *publishWorker) syndicatePost(ctx context.Context, post *synd.Post) {
 	if w.bluesky != nil {
 		if err := syndicateToBluesky(ctx, w.store, post, w.baseURL, *w.bluesky); err != nil {
