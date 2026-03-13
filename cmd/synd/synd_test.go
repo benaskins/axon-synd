@@ -176,7 +176,7 @@ func TestRunPostWithSyndicate(t *testing.T) {
 	t.Setenv("SYND_BLUESKY_PASSWORD", "pass")
 	t.Setenv("SYND_BLUESKY_PDS", srv.URL)
 
-	rootCmd.SetArgs([]string{"post", "--syndicate", "--site-dir", siteDir, "--base-url", "https://example.com", "test syndication"})
+	rootCmd.SetArgs([]string{"post", "--immediate", "--syndicate", "--site-dir", siteDir, "--base-url", "https://example.com", "test syndication"})
 	rootCmd.SetContext(context.Background())
 
 	if err := rootCmd.Execute(); err != nil {
@@ -185,6 +185,49 @@ func TestRunPostWithSyndicate(t *testing.T) {
 
 	if postedText != "test syndication" {
 		t.Errorf("bluesky text = %q, want %q", postedText, "test syndication")
+	}
+}
+
+func TestRunPostCreatesDraft(t *testing.T) {
+	store, _ := newMemoryStore()
+	ctx := context.Background()
+
+	post, err := store.Create(ctx, synd.Short, "draft post")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if post.Status != synd.StatusDraft {
+		t.Errorf("Status = %q, want %q", post.Status, synd.StatusDraft)
+	}
+}
+
+func TestRunApprove(t *testing.T) {
+	store, _ := newMemoryStore()
+	ctx := context.Background()
+
+	post, _ := store.Create(ctx, synd.Short, "needs approval")
+	if err := store.Approve(ctx, post.ID, "test-user"); err != nil {
+		t.Fatalf("Approve: %v", err)
+	}
+
+	got := store.Get(post.ID)
+	if got.Status != synd.StatusApproved {
+		t.Errorf("Status = %q, want %q", got.Status, synd.StatusApproved)
+	}
+}
+
+func TestDraftsList(t *testing.T) {
+	store, _ := newMemoryStore()
+	ctx := context.Background()
+
+	store.Create(ctx, synd.Short, "draft one")
+	store.Create(ctx, synd.Short, "draft two")
+	p3, _ := store.Create(ctx, synd.Short, "approved one")
+	store.Approve(ctx, p3.ID, "ben")
+
+	drafts := store.Projection().Drafts()
+	if len(drafts) != 2 {
+		t.Fatalf("got %d drafts, want 2", len(drafts))
 	}
 }
 
