@@ -18,7 +18,7 @@ func init() {
 }
 
 func runPosts(cmd *cobra.Command, args []string) error {
-	store, _ := newStore()
+	store, _ := newStoreFromCmd(cmd)
 	posts := store.List()
 
 	if len(posts) == 0 {

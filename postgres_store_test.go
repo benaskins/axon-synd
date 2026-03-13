@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"time"
+
 	"github.com/benaskins/axon"
 	fact "github.com/benaskins/axon-fact"
 	"github.com/google/uuid"
@@ -232,6 +234,80 @@ func TestPostgresEventStore_Metadata(t *testing.T) {
 	}
 	if loaded[0].Metadata["source"] != "cli" {
 		t.Errorf("Metadata[source] = %q, want %q", loaded[0].Metadata["source"], "cli")
+	}
+}
+
+func TestPostgresEventStore_LoadAll(t *testing.T) {
+	skipIfNoPostgres(t)
+	store := openTestEventStore(t)
+	ctx := context.Background()
+
+	// Create events across multiple streams
+	store.Append(ctx, "post-aaa", []fact.Event{
+		{ID: uuid.New().String(), Type: EventPostCreated, Data: MarshalData(PostCreated{ID: "aaa", Kind: Short, Body: "first"})},
+	})
+	store.Append(ctx, "post-bbb", []fact.Event{
+		{ID: uuid.New().String(), Type: EventPostCreated, Data: MarshalData(PostCreated{ID: "bbb", Kind: Long, Body: "second"})},
+	})
+	store.Append(ctx, "post-aaa", []fact.Event{
+		{ID: uuid.New().String(), Type: EventPostPublished, Data: MarshalData(PostPublished{ID: "aaa", URL: "https://example.com/aaa"})},
+	})
+
+	all, err := store.LoadAll(ctx)
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+
+	if len(all) != 3 {
+		t.Fatalf("got %d events, want 3", len(all))
+	}
+
+	// Should be ordered by occurred_at, sequence
+	for i := 1; i < len(all); i++ {
+		if all[i].OccurredAt.Before(all[i-1].OccurredAt) {
+			t.Errorf("event[%d] occurred before event[%d]", i, i-1)
+		}
+	}
+}
+
+func TestPostgresEventStore_ReplayIntoProjection(t *testing.T) {
+	skipIfNoPostgres(t)
+	ctx := context.Background()
+
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		dsn = "postgres://localhost:5432/lamina?sslmode=disable"
+	}
+	db := axon.OpenTestDB(t, dsn, Migrations)
+
+	// Create store with projection, write some events
+	projection1 := &PostProjection{}
+	store1 := NewPostgresEventStore(db, WithPgProjector(projection1))
+
+	store1.Append(ctx, "post-x1", []fact.Event{
+		{ID: uuid.New().String(), Type: EventPostCreated, Data: MarshalData(PostCreated{ID: "x1", Kind: Short, Body: "persisted post"})},
+	})
+	store1.Append(ctx, "post-x1", []fact.Event{
+		{ID: uuid.New().String(), Type: EventPostPublished, Data: MarshalData(PostPublished{ID: "x1", URL: "https://example.com/x1", PublishedAt: time.Now().UTC()})},
+	})
+
+	// Simulate a new process: fresh projection, replay from DB
+	projection2 := &PostProjection{}
+	store2 := NewPostgresEventStore(db, WithPgProjector(projection2))
+
+	if err := store2.Replay(ctx); err != nil {
+		t.Fatalf("Replay: %v", err)
+	}
+
+	post := projection2.Get("x1")
+	if post == nil {
+		t.Fatal("post x1 not found after replay")
+	}
+	if post.Body != "persisted post" {
+		t.Errorf("Body = %q", post.Body)
+	}
+	if post.PublishedAt.IsZero() {
+		t.Error("expected non-zero PublishedAt after replay")
 	}
 }
 

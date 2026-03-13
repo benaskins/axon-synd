@@ -166,6 +166,34 @@ func (s *PostgresEventStore) LoadFrom(ctx context.Context, stream string, fromSe
 	`, stream, fromSequence)
 }
 
+// LoadAll returns all events across all streams, ordered by occurred_at and sequence.
+// Used to rebuild projections on startup.
+func (s *PostgresEventStore) LoadAll(ctx context.Context) ([]fact.Event, error) {
+	return s.queryEvents(ctx, `
+		SELECT id, stream, type, data, metadata, sequence, occurred_at
+		FROM events
+		ORDER BY occurred_at ASC, sequence ASC
+	`)
+}
+
+// Replay loads all persisted events and replays them through the registered projectors.
+func (s *PostgresEventStore) Replay(ctx context.Context) error {
+	events, err := s.LoadAll(ctx)
+	if err != nil {
+		return fmt.Errorf("load all events: %w", err)
+	}
+
+	for _, e := range events {
+		for _, p := range s.projectors {
+			if err := p.Handle(ctx, e); err != nil {
+				return fmt.Errorf("replay projector: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (s *PostgresEventStore) queryEvents(ctx context.Context, query string, args ...any) ([]fact.Event, error) {
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {

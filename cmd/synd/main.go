@@ -19,6 +19,14 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().String("site-dir", "", "path to site repo (default: SYND_SITE_DIR env)")
 	rootCmd.PersistentFlags().String("base-url", "", "site base URL (default: SYND_BASE_URL env or https://generativeplane.com)")
+	rootCmd.PersistentFlags().String("database-url", "", "PostgreSQL DSN (default: DATABASE_URL env)")
+}
+
+func databaseURL(cmd *cobra.Command) string {
+	if u, _ := cmd.Flags().GetString("database-url"); u != "" {
+		return u
+	}
+	return os.Getenv("DATABASE_URL")
 }
 
 func siteDir(cmd *cobra.Command) string {
