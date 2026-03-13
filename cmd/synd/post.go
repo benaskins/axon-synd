@@ -32,23 +32,18 @@ func init() {
 	postCmd.Flags().String("title", "", "title for long-form posts")
 	postCmd.Flags().String("abstract", "", "abstract for long-form posts")
 	postCmd.Flags().StringSlice("tags", nil, "tags for the post")
-	postCmd.Flags().Bool("no-publish", false, "create post without publishing to site")
+	postCmd.Flags().Bool("immediate", false, "bypass approval gate: publish and syndicate immediately")
 	postCmd.Flags().Bool("syndicate", false, "syndicate to all configured platforms after publishing")
 	rootCmd.AddCommand(postCmd)
 }
 
 func runPost(cmd *cobra.Command, args []string) error {
-	dir := siteDir(cmd)
-	if dir == "" {
-		return fmt.Errorf("site directory required: set --site-dir or SYND_SITE_DIR")
-	}
-
 	isLong, _ := cmd.Flags().GetBool("long")
 	imagePath, _ := cmd.Flags().GetString("image")
 	title, _ := cmd.Flags().GetString("title")
 	abstract, _ := cmd.Flags().GetString("abstract")
 	tags, _ := cmd.Flags().GetStringSlice("tags")
-	noPublish, _ := cmd.Flags().GetBool("no-publish")
+	immediate, _ := cmd.Flags().GetBool("immediate")
 
 	store, projection := newStoreFromCmd(cmd)
 	ctx := cmd.Context()
@@ -85,10 +80,27 @@ func runPost(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("create post: %w", err)
 	}
 
-	fmt.Printf("created: %s (%s)\n", post.ID, post.Kind)
-
-	if noPublish {
+	if !immediate {
+		fmt.Printf("draft: %s (%s) — awaiting approval\n", post.ID, post.Kind)
 		return nil
+	}
+
+	// --immediate: approve, publish, and optionally syndicate in one shot
+	fmt.Printf("created: %s (%s)\n", post.ID, post.Kind)
+	return publishPost(cmd, ctx, store, projection, post)
+}
+
+func publishPost(cmd *cobra.Command, ctx context.Context, store *synd.PostStore, projection *synd.PostProjection, post *synd.Post) error {
+	dir := siteDir(cmd)
+	if dir == "" {
+		return fmt.Errorf("site directory required: set --site-dir or SYND_SITE_DIR")
+	}
+
+	// Mark as approved (implicit for --immediate)
+	if post.Status == synd.StatusDraft {
+		if err := store.Approve(ctx, post.ID, "cli"); err != nil {
+			return fmt.Errorf("approve: %w", err)
+		}
 	}
 
 	url := fmt.Sprintf("%s/posts/%s", baseURL(cmd), post.ID)
@@ -121,7 +133,6 @@ func runPost(cmd *cobra.Command, args []string) error {
 	// Syndicate if requested
 	doSyndicate, _ := cmd.Flags().GetBool("syndicate")
 	if doSyndicate {
-		// Refresh post after publish
 		post = store.Get(post.ID)
 
 		bskyConfig, err := blueskyConfigFromEnv()
