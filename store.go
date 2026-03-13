@@ -36,6 +36,12 @@ func (s *PostStore) Projector() fact.Projector {
 	return s.projection
 }
 
+// SetEventStore replaces the backing event store. Used when the store
+// is constructed before the event store is available.
+func (s *PostStore) SetEventStore(es fact.EventStore) {
+	s.events = es
+}
+
 // Create persists a new post as a PostCreated event.
 func (s *PostStore) Create(ctx context.Context, kind PostKind, body string, opts ...PostOption) (*Post, error) {
 	cfg := postConfig{}
