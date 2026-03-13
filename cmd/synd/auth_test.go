@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/benaskins/axon"
+	synd "github.com/benaskins/axon-synd"
 )
 
 // stubValidator is a test SessionValidator that always succeeds or fails.
@@ -66,6 +68,29 @@ func TestAPIEndpoint_AllowsAuthenticated(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET /api/drafts with auth = %d, want 200", w.Code)
+	}
+}
+
+func TestApprovePost_UsesAuthIdentity(t *testing.T) {
+	store, _ := newMemoryStore()
+	ctx := context.Background()
+	post, _ := store.Create(ctx, synd.Short, "identity test", synd.WithApprovalToken("tok"))
+
+	sv := &stubValidator{valid: true, username: "alice"}
+	mux := buildMux(store, sv)
+
+	req := httptest.NewRequest("POST", "/api/drafts/"+post.ID+"/approve", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: "valid"})
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", w.Code, w.Body.String())
+	}
+
+	got := store.Get(post.ID)
+	if got.ApprovedBy != "alice" {
+		t.Errorf("ApprovedBy = %q, want %q", got.ApprovedBy, "alice")
 	}
 }
 

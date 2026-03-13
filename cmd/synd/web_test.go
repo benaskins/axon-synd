@@ -9,8 +9,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/benaskins/axon"
 	synd "github.com/benaskins/axon-synd"
 )
+
+// withAuthContext sets auth identity on the request context for testing.
+func withAuthContext(r *http.Request, username string) *http.Request {
+	ctx := context.WithValue(r.Context(), axon.UsernameKey, username)
+	ctx = context.WithValue(ctx, axon.UserIDKey, "test-user-id")
+	return r.WithContext(ctx)
+}
 
 func TestShowDraft(t *testing.T) {
 	store, _ := newMemoryStore()
@@ -80,6 +88,7 @@ func TestReviseDraft(t *testing.T) {
 	req := httptest.NewRequest("POST", "/drafts/"+post.ID+"/revise", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetPathValue("id", post.ID)
+	req = withAuthContext(req, "test-user")
 	w := httptest.NewRecorder()
 
 	h.ReviseDraft(w, req)
@@ -107,6 +116,7 @@ func TestApproveDraft(t *testing.T) {
 	req := httptest.NewRequest("POST", "/drafts/"+post.ID+"/approve", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetPathValue("id", post.ID)
+	req = withAuthContext(req, "test-user")
 	w := httptest.NewRecorder()
 
 	h.ApproveDraft(w, req)

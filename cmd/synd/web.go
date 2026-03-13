@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/benaskins/axon"
 	synd "github.com/benaskins/axon-synd"
 )
 
@@ -63,7 +64,7 @@ func (h *webHandler) ReviseDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.store.Revise(r.Context(), id, body, post.Title, post.Abstract, post.Tags, "web")
+	h.store.Revise(r.Context(), id, body, post.Title, post.Abstract, post.Tags, axon.Username(r.Context()))
 
 	http.Redirect(w, r, "/drafts/"+id+"?token="+token, http.StatusSeeOther)
 }
@@ -84,7 +85,7 @@ func (h *webHandler) ApproveDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.store.Approve(r.Context(), id, "web")
+	h.store.Approve(r.Context(), id, axon.Username(r.Context()))
 
 	post = h.store.Get(id)
 	data := map[string]any{
