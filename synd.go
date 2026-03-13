@@ -23,6 +23,7 @@ const (
 	StatusDraft     PostStatus = "draft"
 	StatusApproved  PostStatus = "approved"
 	StatusPublished PostStatus = "published"
+	StatusDeleted   PostStatus = "deleted"
 )
 
 // Post is the canonical representation of a piece of content.
@@ -85,6 +86,7 @@ const (
 	EventPostApproved         = "post.approved"
 	EventPostPublished        = "post.published"
 	EventPostSyndicated       = "post.syndicated"
+	EventPostDeleted          = "post.deleted"
 	EventPostEngagementUpdate = "post.engagement_updated"
 )
 
@@ -134,6 +136,13 @@ type PostSyndicated struct {
 	RemoteID  string   `json:"remote_id"`
 	RemoteURL string   `json:"remote_url,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// PostDeleted is emitted when a post is removed from the site.
+type PostDeleted struct {
+	PostID    string    `json:"post_id"`
+	DeletedAt time.Time `json:"deleted_at"`
+	DeletedBy string    `json:"deleted_by"`
 }
 
 // PostEngagementUpdated is emitted when metrics are polled from a platform.

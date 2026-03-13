@@ -375,6 +375,52 @@ func TestPostProjection_ApprovedPosts(t *testing.T) {
 	}
 }
 
+func TestPostStore_Delete(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	post, _ := store.Create(ctx, Short, "delete me")
+	if err := store.Delete(ctx, post.ID, "ben"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	got := store.Get(post.ID)
+	if got.Status != StatusDeleted {
+		t.Errorf("Status = %q, want %q", got.Status, StatusDeleted)
+	}
+}
+
+func TestPostStore_DeletedPostExcludedFromList(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	p1, _ := store.Create(ctx, Short, "keep me")
+	p2, _ := store.Create(ctx, Short, "delete me")
+	store.Delete(ctx, p2.ID, "ben")
+
+	posts := store.Projection().List()
+	if len(posts) != 1 {
+		t.Fatalf("got %d posts, want 1", len(posts))
+	}
+	if posts[0].ID != p1.ID {
+		t.Errorf("remaining post = %q, want %q", posts[0].ID, p1.ID)
+	}
+}
+
+func TestPostStore_DeletedPostExcludedFromDrafts(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	store.Create(ctx, Short, "keep me")
+	p2, _ := store.Create(ctx, Short, "delete me")
+	store.Delete(ctx, p2.ID, "ben")
+
+	drafts := store.Projection().Drafts()
+	if len(drafts) != 1 {
+		t.Fatalf("got %d drafts, want 1", len(drafts))
+	}
+}
+
 func TestPostStore_ImportedPostSkipsSourcPlatform(t *testing.T) {
 	store := newTestStore(t)
 	ctx := context.Background()

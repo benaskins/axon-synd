@@ -164,6 +164,25 @@ func (s *PostStore) Syndicate(ctx context.Context, postID string, platform Platf
 	return s.events.Append(ctx, streamKey(postID), []fact.Event{event})
 }
 
+// Delete marks a post as deleted so it is excluded from listings and site builds.
+func (s *PostStore) Delete(ctx context.Context, postID, deletedBy string) error {
+	now := time.Now().UTC()
+
+	deleted := PostDeleted{
+		PostID:    postID,
+		DeletedAt: now,
+		DeletedBy: deletedBy,
+	}
+
+	event := fact.Event{
+		ID:   uuid.New().String(),
+		Type: EventPostDeleted,
+		Data: MarshalData(deleted),
+	}
+
+	return s.events.Append(ctx, streamKey(postID), []fact.Event{event})
+}
+
 // UpdateEngagement records polled metrics for a post on a platform.
 func (s *PostStore) UpdateEngagement(ctx context.Context, postID string, platform Platform, likes, reposts, replies, views int) error {
 	now := time.Now().UTC()
@@ -299,6 +318,17 @@ func (p *PostProjection) Handle(_ context.Context, event fact.Event) error {
 		}
 		p.mu.Unlock()
 
+	case EventPostDeleted:
+		var data PostDeleted
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return fmt.Errorf("unmarshal post.deleted: %w", err)
+		}
+		p.mu.Lock()
+		if post, ok := p.posts[data.PostID]; ok {
+			post.Status = StatusDeleted
+		}
+		p.mu.Unlock()
+
 	case EventPostSyndicated:
 		var data PostSyndicated
 		if err := json.Unmarshal(event.Data, &data); err != nil {
@@ -359,6 +389,9 @@ func (p *PostProjection) List() []Post {
 
 	posts := make([]Post, 0, len(p.posts))
 	for _, post := range p.posts {
+		if post.Status == StatusDeleted {
+			continue
+		}
 		posts = append(posts, *post)
 	}
 
@@ -439,6 +472,9 @@ func (p *PostProjection) UnsyncedPosts(platform Platform) []Post {
 
 	var out []Post
 	for id, post := range p.posts {
+		if post.Status == StatusDeleted {
+			continue
+		}
 		if post.ImportedFrom == string(platform) {
 			continue
 		}

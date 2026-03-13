@@ -151,6 +151,7 @@ func buildMux(store *synd.PostStore, sv axon.SessionValidator) *http.ServeMux {
 	mux.Handle("POST /api/posts", requireAuth(http.HandlerFunc(api.CreatePost)))
 	mux.Handle("GET /api/drafts", requireAuth(http.HandlerFunc(api.ListDrafts)))
 	mux.Handle("POST /api/drafts/{id}/approve", requireAuth(http.HandlerFunc(api.ApprovePost)))
+	mux.Handle("DELETE /api/posts/{id}", requireAuth(http.HandlerFunc(api.DeletePost)))
 	mux.Handle("GET /drafts/{id}", webAuth(http.HandlerFunc(h.ShowDraft)))
 	mux.Handle("POST /drafts/{id}/revise", webAuth(http.HandlerFunc(h.ReviseDraft)))
 	mux.Handle("POST /drafts/{id}/approve", webAuth(http.HandlerFunc(h.ApproveDraft)))
