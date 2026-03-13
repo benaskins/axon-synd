@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
 
@@ -124,6 +125,76 @@ func TestBlueskyClient_PostWithLink(t *testing.T) {
 	}
 	if int(index["byteEnd"].(float64)) != 22 {
 		t.Errorf("byteEnd = %v, want 22", index["byteEnd"])
+	}
+}
+
+func TestBlueskyClient_PostWithImage(t *testing.T) {
+	var capturedRecord map[string]any
+	var uploadedContentType string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/xrpc/com.atproto.server.createSession":
+			json.NewEncoder(w).Encode(map[string]string{
+				"did":        "did:plc:test123",
+				"accessJwt":  "token",
+				"refreshJwt": "refresh",
+			})
+		case "/xrpc/com.atproto.repo.uploadBlob":
+			uploadedContentType = r.Header.Get("Content-Type")
+			json.NewEncoder(w).Encode(map[string]any{
+				"blob": map[string]any{
+					"$type":    "blob",
+					"ref":      map[string]string{"$link": "bafkreiblob"},
+					"mimeType": uploadedContentType,
+					"size":     r.ContentLength,
+				},
+			})
+		case "/xrpc/com.atproto.repo.createRecord":
+			var body map[string]any
+			json.NewDecoder(r.Body).Decode(&body)
+			capturedRecord = body["record"].(map[string]any)
+			json.NewEncoder(w).Encode(map[string]string{
+				"uri": "at://did:plc:test123/app.bsky.feed.post/img1",
+				"cid": "bafyimg",
+			})
+		}
+	}))
+	defer srv.Close()
+
+	client := authenticatedClient(t, srv)
+
+	// Create a temp image file
+	tmpFile := t.TempDir() + "/test.png"
+	os.WriteFile(tmpFile, []byte("fake-png-data"), 0o644)
+
+	uri, _, err := client.PostWithImage(context.Background(), "studio session", tmpFile, "a photo")
+	if err != nil {
+		t.Fatalf("PostWithImage: %v", err)
+	}
+
+	if uri != "at://did:plc:test123/app.bsky.feed.post/img1" {
+		t.Errorf("uri = %q", uri)
+	}
+	if uploadedContentType != "image/png" {
+		t.Errorf("content-type = %q, want image/png", uploadedContentType)
+	}
+
+	embed, ok := capturedRecord["embed"].(map[string]any)
+	if !ok {
+		t.Fatal("missing embed in record")
+	}
+	if embed["$type"] != "app.bsky.embed.images" {
+		t.Errorf("embed type = %q", embed["$type"])
+	}
+
+	images := embed["images"].([]any)
+	if len(images) != 1 {
+		t.Fatalf("got %d images, want 1", len(images))
+	}
+	img := images[0].(map[string]any)
+	if img["alt"] != "a photo" {
+		t.Errorf("alt = %q, want %q", img["alt"], "a photo")
 	}
 }
 
