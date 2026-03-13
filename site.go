@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/yuin/goldmark"
-	goldhtml "github.com/yuin/goldmark/renderer/html"
 )
 
 // SiteConfig holds settings for static site generation.
@@ -29,7 +28,7 @@ type SiteBuilder struct {
 
 // NewSiteBuilder creates a builder with the given config.
 func NewSiteBuilder(config SiteConfig) *SiteBuilder {
-	md := goldmark.New(goldmark.WithRendererOptions(goldhtml.WithUnsafe()))
+	md := goldmark.New()
 
 	funcMap := template.FuncMap{
 		"formatDate": func(t time.Time) string {
