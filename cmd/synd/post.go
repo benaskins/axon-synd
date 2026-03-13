@@ -93,7 +93,13 @@ func runPost(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	resp, err := http.Post(serviceURL()+"/api/posts", "application/json", bytes.NewReader(payload))
+	httpReq, err := authedRequest("POST", serviceURL()+"/api/posts", bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
 		return fmt.Errorf("create post: %w", err)
 	}

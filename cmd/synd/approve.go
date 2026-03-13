@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/user"
 
 	"github.com/spf13/cobra"
 )
@@ -25,13 +24,13 @@ func init() {
 func runApprove(cmd *cobra.Command, args []string) error {
 	postID := args[0]
 
-	username := "cli"
-	if u, err := user.Current(); err == nil {
-		username = u.Username
+	url := fmt.Sprintf("%s/api/drafts/%s/approve", serviceURL(), postID)
+	req, err := authedRequest("POST", url, nil)
+	if err != nil {
+		return fmt.Errorf("auth: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/api/drafts/%s/approve?by=%s", serviceURL(), postID, username)
-	resp, err := http.Post(url, "application/json", nil)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("approve: %w", err)
 	}
