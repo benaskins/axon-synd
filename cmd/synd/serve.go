@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/benaskins/axon"
+	fact "github.com/benaskins/axon-fact"
 	synd "github.com/benaskins/axon-synd"
 	"github.com/spf13/cobra"
 )
@@ -61,11 +64,15 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	// Start web server
 	h := newWebHandler(store)
+	api := newAPIHandler(store)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+	mux.HandleFunc("POST /api/posts", api.CreatePost)
+	mux.HandleFunc("GET /api/drafts", api.ListDrafts)
+	mux.HandleFunc("POST /api/drafts/{id}/approve", api.ApprovePost)
 	mux.HandleFunc("GET /drafts/{id}", h.ShowDraft)
 	mux.HandleFunc("POST /drafts/{id}/revise", h.ReviseDraft)
 	mux.HandleFunc("POST /drafts/{id}/approve", h.ApproveDraft)
@@ -89,4 +96,44 @@ func mastodonConfigPtr() *synd.MastodonConfig {
 		return nil
 	}
 	return &cfg
+}
+
+func newStoreFromCmd(cmd *cobra.Command) (*synd.PostStore, *synd.PostProjection) {
+	dsn := databaseURL(cmd)
+	if dsn != "" {
+		return newPersistentStore(cmd.Context(), dsn)
+	}
+	return newMemoryStore()
+}
+
+func newPersistentStore(ctx context.Context, dsn string) (*synd.PostStore, *synd.PostProjection) {
+	db, err := axon.OpenDB(dsn, "synd")
+	if err != nil {
+		slog.Error("open database", "error", err)
+		os.Exit(1)
+	}
+	if err := axon.RunMigrations(db, synd.Migrations); err != nil {
+		slog.Error("run migrations", "error", err)
+		os.Exit(1)
+	}
+
+	store := synd.NewPostStore(nil)
+	projection := store.Projection()
+	events := synd.NewPostgresEventStore(db, synd.WithPgProjector(projection))
+	store.SetEventStore(events)
+
+	if err := events.Replay(ctx); err != nil {
+		slog.Error("replay events", "error", err)
+		os.Exit(1)
+	}
+
+	return store, projection
+}
+
+func newMemoryStore() (*synd.PostStore, *synd.PostProjection) {
+	store := synd.NewPostStore(nil)
+	projection := store.Projection()
+	events := fact.NewMemoryStore(fact.WithProjector(projection))
+	store.SetEventStore(events)
+	return store, projection
 }

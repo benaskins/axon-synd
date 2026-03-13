@@ -148,43 +148,39 @@ func TestSyndicateBluesky_SkipsImportedPost(t *testing.T) {
 	}
 }
 
-func TestRunPostWithSyndicate(t *testing.T) {
-	var postedText string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestRunPostCallsAPI(t *testing.T) {
+	var gotReq createPostRequest
+	apiSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/xrpc/com.atproto.server.createSession":
-			json.NewEncoder(w).Encode(map[string]string{
-				"did": "did:plc:test", "accessJwt": "tok", "refreshJwt": "ref",
+		case "/api/posts":
+			json.NewDecoder(r.Body).Decode(&gotReq)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(postResponse{
+				ID:     "test-123",
+				Kind:   string(gotReq.Kind),
+				Status: "draft",
 			})
-		case "/xrpc/com.atproto.repo.createRecord":
-			var body map[string]any
-			json.NewDecoder(r.Body).Decode(&body)
-			record := body["record"].(map[string]any)
-			postedText = record["text"].(string)
-			json.NewEncoder(w).Encode(map[string]string{
-				"uri": "at://did:plc:test/app.bsky.feed.post/syn1",
-				"cid": "bafysyn",
-			})
+		default:
+			http.Error(w, "not found", 404)
 		}
 	}))
-	defer srv.Close()
+	defer apiSrv.Close()
 
-	// Set up a git repo as the site dir
-	siteDir := setupTestSiteRepo(t)
+	t.Setenv("SYND_SERVICE_URL", apiSrv.URL)
 
-	t.Setenv("SYND_BLUESKY_HANDLE", "test.bsky.social")
-	t.Setenv("SYND_BLUESKY_PASSWORD", "pass")
-	t.Setenv("SYND_BLUESKY_PDS", srv.URL)
-
-	rootCmd.SetArgs([]string{"post", "--immediate", "--syndicate", "--site-dir", siteDir, "--base-url", "https://example.com", "test syndication"})
+	rootCmd.SetArgs([]string{"post", "test via api"})
 	rootCmd.SetContext(context.Background())
 
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
 
-	if postedText != "test syndication" {
-		t.Errorf("bluesky text = %q, want %q", postedText, "test syndication")
+	if gotReq.Body != "test via api" {
+		t.Errorf("body = %q, want %q", gotReq.Body, "test via api")
+	}
+	if gotReq.Kind != synd.Short {
+		t.Errorf("kind = %q, want %q", gotReq.Kind, synd.Short)
 	}
 }
 
