@@ -205,6 +205,9 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>{{.Config.Title}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <link rel="alternate" type="application/rss+xml" title="{{.Config.Title}}" href="/feed.xml">
 </head>
@@ -245,6 +248,9 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <meta property="og:description" content="{{if .Post.Abstract}}{{.Post.Abstract}}{{else}}{{truncate .Post.Body 200}}{{end}}">
 <meta property="og:url" content="{{.Config.BaseURL}}/posts/{{.Post.ID}}">
 <meta property="og:type" content="article">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -271,9 +277,7 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 
 var feedTemplate = `{{define "feed"}}{{end}}`
 
-var styleTemplate = `{{define "style"}}@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
-
-:root {
+var styleTemplate = `{{define "style"}}:root {
   --ink: #1C1917;
   --cream: #FAF9F7;
   --rule: #E7E5E4;
