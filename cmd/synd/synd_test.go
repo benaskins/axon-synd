@@ -32,7 +32,7 @@ func TestSyndicateBluesky_ShortPost(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store, _ := newStore()
+	store, _ := newMemoryStore()
 	ctx := context.Background()
 	post, err := store.Create(ctx, synd.Short, "hello from test")
 	if err != nil {
@@ -87,7 +87,7 @@ func TestSyndicateBluesky_LongPost(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store, _ := newStore()
+	store, _ := newMemoryStore()
 	ctx := context.Background()
 	post, _ := store.Create(ctx, synd.Long, "# Full Article\n\nLong content here.",
 		synd.WithTitle("Full Article"),
@@ -132,7 +132,7 @@ func TestSyndicateBluesky_SkipsImportedPost(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store, _ := newStore()
+	store, _ := newMemoryStore()
 	ctx := context.Background()
 	// Post imported from bluesky should not be re-syndicated
 	post, _ := store.Create(ctx, synd.Short, "old bsky post", synd.WithImportedFrom("bluesky"))
@@ -211,7 +211,7 @@ func TestSyndicateBluesky_AuthFailure(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store, _ := newStore()
+	store, _ := newMemoryStore()
 	ctx := context.Background()
 	post, _ := store.Create(ctx, synd.Short, "will fail")
 
@@ -230,7 +230,7 @@ func TestSyndicateMastodon_ShortPost(t *testing.T) {
 	})
 	defer srv.Close()
 
-	store, _ := newStore()
+	store, _ := newMemoryStore()
 	ctx := context.Background()
 	post, err := store.Create(ctx, synd.Short, "hello mastodon")
 	if err != nil {
@@ -266,7 +266,7 @@ func TestSyndicateMastodon_LongPost(t *testing.T) {
 	})
 	defer srv.Close()
 
-	store, _ := newStore()
+	store, _ := newMemoryStore()
 	ctx := context.Background()
 	post, _ := store.Create(ctx, synd.Long, "# Full Article\n\nLong content here.",
 		synd.WithTitle("Full Article"),
@@ -301,7 +301,7 @@ func TestSyndicateMastodon_SkipsImportedPost(t *testing.T) {
 	})
 	defer srv.Close()
 
-	store, _ := newStore()
+	store, _ := newMemoryStore()
 	ctx := context.Background()
 	post, _ := store.Create(ctx, synd.Short, "old mastodon post", synd.WithImportedFrom("mastodon"))
 

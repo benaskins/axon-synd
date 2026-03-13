@@ -29,7 +29,7 @@ func runSynd(cmd *cobra.Command, args []string) error {
 	postID := args[0]
 	platform, _ := cmd.Flags().GetString("platform")
 
-	store, _ := newStore()
+	store, _ := newStoreFromCmd(cmd)
 	post := store.Get(postID)
 	if post == nil {
 		return fmt.Errorf("post %s not found", postID)

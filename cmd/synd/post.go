@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
+	"github.com/benaskins/axon"
 	fact "github.com/benaskins/axon-fact"
 	synd "github.com/benaskins/axon-synd"
 	"github.com/spf13/cobra"
@@ -48,7 +50,7 @@ func runPost(cmd *cobra.Command, args []string) error {
 	tags, _ := cmd.Flags().GetStringSlice("tags")
 	noPublish, _ := cmd.Flags().GetBool("no-publish")
 
-	store, projection := newStore()
+	store, projection := newStoreFromCmd(cmd)
 	ctx := cmd.Context()
 
 	var post *synd.Post
@@ -197,7 +199,39 @@ func truncateForCommit(s string, n int) string {
 	return s[:n] + "..."
 }
 
-func newStore() (*synd.PostStore, *synd.PostProjection) {
+func newStoreFromCmd(cmd *cobra.Command) (*synd.PostStore, *synd.PostProjection) {
+	dsn := databaseURL(cmd)
+	if dsn != "" {
+		return newPersistentStore(cmd.Context(), dsn)
+	}
+	return newMemoryStore()
+}
+
+func newPersistentStore(ctx context.Context, dsn string) (*synd.PostStore, *synd.PostProjection) {
+	db, err := axon.OpenDB(dsn, "synd")
+	if err != nil {
+		slog.Error("open database", "error", err)
+		os.Exit(1)
+	}
+	if err := axon.RunMigrations(db, synd.Migrations); err != nil {
+		slog.Error("run migrations", "error", err)
+		os.Exit(1)
+	}
+
+	store := synd.NewPostStore(nil)
+	projection := store.Projection()
+	events := synd.NewPostgresEventStore(db, synd.WithPgProjector(projection))
+	store.SetEventStore(events)
+
+	if err := events.Replay(ctx); err != nil {
+		slog.Error("replay events", "error", err)
+		os.Exit(1)
+	}
+
+	return store, projection
+}
+
+func newMemoryStore() (*synd.PostStore, *synd.PostProjection) {
 	store := synd.NewPostStore(nil)
 	projection := store.Projection()
 	events := fact.NewMemoryStore(fact.WithProjector(projection))
