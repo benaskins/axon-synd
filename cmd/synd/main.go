@@ -20,6 +20,7 @@ func init() {
 	rootCmd.PersistentFlags().String("site-dir", "", "path to site repo (default: SYND_SITE_DIR env)")
 	rootCmd.PersistentFlags().String("base-url", "", "site base URL (default: SYND_BASE_URL env or https://generativeplane.com)")
 	rootCmd.PersistentFlags().String("database-url", "", "PostgreSQL DSN (default: DATABASE_URL env)")
+	rootCmd.PersistentFlags().String("review-url", "", "review server base URL (default: SYND_REVIEW_URL env)")
 }
 
 func databaseURL(cmd *cobra.Command) string {
@@ -37,6 +38,16 @@ func siteDir(cmd *cobra.Command) string {
 		return d
 	}
 	return ""
+}
+
+func reviewURL(cmd *cobra.Command) string {
+	if u, _ := cmd.Flags().GetString("review-url"); u != "" {
+		return u
+	}
+	if u := os.Getenv("SYND_REVIEW_URL"); u != "" {
+		return u
+	}
+	return "http://synd.studio.internal:8094"
 }
 
 func baseURL(cmd *cobra.Command) string {
