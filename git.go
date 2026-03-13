@@ -34,6 +34,14 @@ func GitPublish(repoDir, message string) (bool, error) {
 	return true, nil
 }
 
+// TestGit runs a git command in the given directory. For use in tests only.
+func TestGit(t interface{ Helper(); Fatalf(string, ...any) }, dir string, args ...string) {
+	t.Helper()
+	if err := git(dir, args...); err != nil {
+		t.Fatalf("git %v: %v", args, err)
+	}
+}
+
 func git(dir string, args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir

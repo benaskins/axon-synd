@@ -38,7 +38,11 @@ func runSynd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if platform == "" || platform == "bluesky" {
-		if err := syndicateBluesky(ctx, store, post, cmd); err != nil {
+		config, err := blueskyConfigFromEnv()
+		if err != nil {
+			return err
+		}
+		if err := syndicateToBluesky(ctx, store, post, baseURL(cmd), config); err != nil {
 			return fmt.Errorf("bluesky: %w", err)
 		}
 	}
@@ -46,17 +50,26 @@ func runSynd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func syndicateBluesky(ctx context.Context, store *synd.PostStore, post *synd.Post, cmd *cobra.Command) error {
+func blueskyConfigFromEnv() (synd.BlueskyConfig, error) {
 	handle := os.Getenv("SYND_BLUESKY_HANDLE")
 	password := os.Getenv("SYND_BLUESKY_PASSWORD")
 	if handle == "" || password == "" {
-		return fmt.Errorf("SYND_BLUESKY_HANDLE and SYND_BLUESKY_PASSWORD must be set")
+		return synd.BlueskyConfig{}, fmt.Errorf("SYND_BLUESKY_HANDLE and SYND_BLUESKY_PASSWORD must be set")
 	}
-
-	client := synd.NewBlueskyClient(synd.BlueskyConfig{
+	return synd.BlueskyConfig{
 		Handle:   handle,
 		Password: password,
-	})
+	}, nil
+}
+
+// syndicateToBluesky posts to Bluesky and records the syndication event.
+// Extracted from the command handler so it's testable and reusable from runPost.
+func syndicateToBluesky(ctx context.Context, store *synd.PostStore, post *synd.Post, siteBaseURL string, config synd.BlueskyConfig) error {
+	if post.ImportedFrom == string(synd.Bluesky) {
+		return nil
+	}
+
+	client := synd.NewBlueskyClient(config)
 
 	if err := client.Authenticate(ctx); err != nil {
 		return err
@@ -71,7 +84,7 @@ func syndicateBluesky(ctx context.Context, store *synd.PostStore, post *synd.Pos
 		if text == "" {
 			text = post.Title
 		}
-		url := fmt.Sprintf("%s/posts/%s", baseURL(cmd), post.ID)
+		url := fmt.Sprintf("%s/posts/%s", siteBaseURL, post.ID)
 		uri, cid, err = client.PostWithLink(ctx, text, url, url)
 
 	case synd.Image:
@@ -82,11 +95,10 @@ func syndicateBluesky(ctx context.Context, store *synd.PostStore, post *synd.Pos
 		}
 
 	default:
-		// Short posts: if under 300 graphemes, post directly. Otherwise treat like long-form.
 		if len([]rune(post.Body)) <= 300 {
 			uri, cid, err = client.Post(ctx, post.Body)
 		} else {
-			url := fmt.Sprintf("%s/posts/%s", baseURL(cmd), post.ID)
+			url := fmt.Sprintf("%s/posts/%s", siteBaseURL, post.ID)
 			truncated := string([]rune(post.Body)[:250]) + "..."
 			uri, cid, err = client.PostWithLink(ctx, truncated, url, url)
 		}
@@ -97,7 +109,7 @@ func syndicateBluesky(ctx context.Context, store *synd.PostStore, post *synd.Pos
 	}
 
 	_ = cid
-	remoteURL := synd.BlueskyPostURL(handle, uri)
+	remoteURL := synd.BlueskyPostURL(config.Handle, uri)
 
 	if err := store.Syndicate(ctx, post.ID, synd.Bluesky, uri, remoteURL); err != nil {
 		return fmt.Errorf("record syndication: %w", err)
