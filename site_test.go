@@ -111,6 +111,55 @@ func TestSiteBuilder_PostPageContent(t *testing.T) {
 	}
 }
 
+func TestSiteBuilder_LongPostRendersMarkdown(t *testing.T) {
+	dir := t.TempDir()
+	builder := NewSiteBuilder(testConfig())
+
+	posts := []Post{{
+		ID:        "md-post",
+		Kind:      Long,
+		Title:     "Test Article",
+		Abstract:  "An article.",
+		Body:      "# Heading\n\nA paragraph.\n\n```go\nfmt.Println(\"hello\")\n```\n\n- item one\n- item two",
+		CreatedAt: time.Date(2026, 3, 13, 0, 0, 0, 0, time.UTC),
+	}}
+	builder.Build(posts, dir)
+
+	content := readFile(t, filepath.Join(dir, "posts", "md-post", "index.html"))
+
+	if !strings.Contains(content, "<h1>Heading</h1>") {
+		t.Error("markdown heading not rendered")
+	}
+	if !strings.Contains(content, "<p>A paragraph.</p>") {
+		t.Error("markdown paragraph not rendered")
+	}
+	if !strings.Contains(content, "<code") {
+		t.Error("markdown code block not rendered")
+	}
+	if !strings.Contains(content, "<li>item one</li>") {
+		t.Error("markdown list not rendered")
+	}
+}
+
+func TestSiteBuilder_ShortPostNoMarkdown(t *testing.T) {
+	dir := t.TempDir()
+	builder := NewSiteBuilder(testConfig())
+
+	posts := []Post{{
+		ID:        "short-post",
+		Kind:      Short,
+		Body:      "just a thought\nwith a newline",
+		CreatedAt: time.Date(2026, 3, 13, 0, 0, 0, 0, time.UTC),
+	}}
+	builder.Build(posts, dir)
+
+	content := readFile(t, filepath.Join(dir, "posts", "short-post", "index.html"))
+
+	if !strings.Contains(content, "just a thought<br>with a newline") {
+		t.Error("short post should use nl2br, not markdown")
+	}
+}
+
 func TestSiteBuilder_PostPageOGTags(t *testing.T) {
 	dir := t.TempDir()
 	builder := NewSiteBuilder(testConfig())

@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/yuin/goldmark"
+	goldhtml "github.com/yuin/goldmark/renderer/html"
 )
 
 // SiteConfig holds settings for static site generation.
@@ -26,6 +29,8 @@ type SiteBuilder struct {
 
 // NewSiteBuilder creates a builder with the given config.
 func NewSiteBuilder(config SiteConfig) *SiteBuilder {
+	md := goldmark.New(goldmark.WithRendererOptions(goldhtml.WithUnsafe()))
+
 	funcMap := template.FuncMap{
 		"formatDate": func(t time.Time) string {
 			return t.Format("2006-01-02")
@@ -41,6 +46,11 @@ func NewSiteBuilder(config SiteConfig) *SiteBuilder {
 		},
 		"nl2br": func(s string) template.HTML {
 			return template.HTML(strings.ReplaceAll(template.HTMLEscapeString(s), "\n", "<br>"))
+		},
+		"renderMarkdown": func(s string) template.HTML {
+			var buf bytes.Buffer
+			md.Convert([]byte(s), &buf)
+			return template.HTML(buf.String())
 		},
 		"postURL": func(p Post) string {
 			return fmt.Sprintf("/posts/%s", p.ID)
@@ -238,7 +248,9 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <article>
 <time datetime="{{formatRFC3339 .Post.CreatedAt}}">{{formatDate .Post.CreatedAt}}</time>
 {{if .Post.Title}}<h2>{{.Post.Title}}</h2>{{end}}
-<div class="body">{{nl2br .Post.Body}}</div>
+{{if eq .Post.Kind "long"}}<div class="body">{{renderMarkdown .Post.Body}}</div>
+{{else}}<div class="body">{{nl2br .Post.Body}}</div>
+{{end}}
 </article>
 </main>
 </body>
