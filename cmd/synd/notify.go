@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 
 	gate "github.com/benaskins/axon-gate"
@@ -30,7 +31,7 @@ func sendDraftNotification(signal *gate.SignalClient, post *synd.Post, reviewBas
 		body = body[:77] + "..."
 	}
 
-	reviewURL := fmt.Sprintf("%s/drafts/%s?token=%s", reviewBaseURL, post.ID, post.ApprovalToken)
+	reviewURL := fmt.Sprintf("%s/drafts/%s?token=%s", reviewBaseURL, post.ID, url.QueryEscape(post.ApprovalToken))
 
 	message := fmt.Sprintf("New draft for review\n\nKind: %s\n%s\n\n%s",
 		post.Kind, body, reviewURL)
