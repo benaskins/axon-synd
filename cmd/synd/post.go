@@ -98,7 +98,7 @@ func runPost(cmd *cobra.Command, args []string) error {
 
 		// Send Signal notification if configured
 		if signal, ok := signalClientFromEnv(); ok {
-			if err := sendDraftNotification(signal, post, baseURL(cmd)); err != nil {
+			if err := sendDraftNotification(signal, post, reviewURL(cmd)); err != nil {
 				fmt.Printf("warning: signal notification failed: %v\n", err)
 			}
 		}
