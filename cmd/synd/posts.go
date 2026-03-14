@@ -27,7 +27,7 @@ func runPosts(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-	fmt.Fprintf(w, "DATE\tKIND\tBODY\n")
+	fmt.Fprintf(w, "ID\tDATE\tKIND\tBODY\n")
 	for _, p := range posts {
 		body := p.Body
 		if p.Kind == "long" && p.Title != "" {
@@ -40,7 +40,7 @@ func runPosts(cmd *cobra.Command, args []string) error {
 		if !p.PublishedAt.IsZero() {
 			published = "+"
 		}
-		fmt.Fprintf(w, "%s\t%s%s\t%s\n", p.CreatedAt.Format("2006-01-02 15:04"), published+string(p.Kind), "", body)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", p.ID, p.CreatedAt.Format("2006-01-02 15:04"), published+string(p.Kind), body)
 	}
 	w.Flush()
 
