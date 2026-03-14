@@ -1,3 +1,5 @@
+github.com/benaskins/axon v0.4.0 h1:1RUAA/EoCLZun5yU+QFxfD3ixGeTQLlbdghjzWX8U6c=
+github.com/benaskins/axon v0.4.0/go.mod h1:Ee45fCSquU1tHR/hspDVG2ECB8cKhKpD2UXcOlfYZd0=
 github.com/benaskins/axon-fact v0.1.2-0.20260313052934-ad7453c0a820 h1:PhQgHO8tvqYSbBNyOoZOu6Zd8uk6NAst57RFQA/rooU=
 github.com/benaskins/axon-fact v0.1.2-0.20260313052934-ad7453c0a820/go.mod h1:X2Ns6MwSNZWJeFiPBaGt16N9cBBGTc/KJa21ax6Ixsw=
 github.com/benaskins/axon-gate v0.1.4 h1:5WfgfVfb4VpLEtp62dkYt207ACCSvcEbykw2ksbl90c=
