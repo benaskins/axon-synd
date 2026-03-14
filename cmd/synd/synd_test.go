@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	synd "github.com/benaskins/axon-synd"
+	"github.com/spf13/cobra"
 )
 
 func TestSyndicateBluesky_ShortPost(t *testing.T) {
@@ -167,13 +168,20 @@ func TestRunPostCallsAPI(t *testing.T) {
 	}))
 	defer apiSrv.Close()
 
+	// Set env vars BEFORE any code reads them — avoids leaking to the live server.
 	t.Setenv("SYND_SERVICE_URL", apiSrv.URL)
 	t.Setenv("SYND_AUTH_TOKEN", "test-token")
 
-	rootCmd.SetArgs([]string{"post", "test via api"})
-	rootCmd.SetContext(context.Background())
+	// Use a fresh cobra command tree instead of the global rootCmd to avoid
+	// state leakage between tests and to ensure env vars are read after Setenv.
+	cmd := &cobra.Command{Use: "synd"}
+	post := *postCmd // shallow copy
+	cmd.AddCommand(&post)
 
-	if err := rootCmd.Execute(); err != nil {
+	cmd.SetArgs([]string{"post", "test via api"})
+	cmd.SetContext(context.Background())
+
+	if err := cmd.Execute(); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
 

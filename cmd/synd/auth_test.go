@@ -97,6 +97,10 @@ func TestApprovePost_UsesAuthIdentity(t *testing.T) {
 }
 
 func TestCreatePost_DoesNotLeakApprovalToken(t *testing.T) {
+	// Prevent Signal notifications from reaching the real service.
+	t.Setenv("SYND_SIGNAL_URL", "")
+	t.Setenv("SYND_SIGNAL_RECIPIENT", "")
+
 	store, _ := newMemoryStore()
 	sv := &stubValidator{valid: true, username: "ben"}
 	mux := buildMux(store, sv)
