@@ -59,6 +59,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	if doSyndicate {
 		w.bluesky = blueskyConfigPtr()
 		w.mastodon = mastodonConfigPtr()
+		w.threads = threadsConfigPtr()
 	}
 
 	go w.run(cmd.Context())
@@ -88,6 +89,14 @@ func blueskyConfigPtr() *synd.BlueskyConfig {
 
 func mastodonConfigPtr() *synd.MastodonConfig {
 	cfg, err := mastodonConfigFromEnv()
+	if err != nil {
+		return nil
+	}
+	return &cfg
+}
+
+func threadsConfigPtr() *synd.ThreadsConfig {
+	cfg, err := threadsConfigFromEnv()
 	if err != nil {
 		return nil
 	}

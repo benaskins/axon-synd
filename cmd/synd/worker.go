@@ -21,6 +21,7 @@ type publishWorker struct {
 	// Optional syndication configs — nil means skip that platform.
 	bluesky  *synd.BlueskyConfig
 	mastodon *synd.MastodonConfig
+	threads  *synd.ThreadsConfig
 }
 
 // run polls for approved posts and publishes them until the context is cancelled.
@@ -135,6 +136,11 @@ func (w *publishWorker) syndicatePost(ctx context.Context, post *synd.Post) {
 	if w.mastodon != nil {
 		if err := syndicateToMastodon(ctx, w.store, post, w.baseURL, *w.mastodon); err != nil {
 			slog.Error("mastodon syndication failed", "post_id", post.ID, "error", err)
+		}
+	}
+	if w.threads != nil {
+		if err := syndicateToThreads(ctx, w.store, post, w.baseURL, *w.threads); err != nil {
+			slog.Error("threads syndication failed", "post_id", post.ID, "error", err)
 		}
 	}
 }
