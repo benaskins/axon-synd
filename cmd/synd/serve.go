@@ -68,7 +68,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// Auth middleware
 	authURL := os.Getenv("SYND_AUTH_URL")
 	if authURL == "" {
-		authURL = "https://auth.studio.internal"
+		return fmt.Errorf("SYND_AUTH_URL must be set")
 	}
 	authClient := axon.NewAuthClientPlain(authURL)
 
@@ -204,7 +204,7 @@ func buildMux(store *synd.PostStore, sv axon.SessionValidator, opts ...muxOption
 func authLoginURL() string {
 	authURL := os.Getenv("SYND_AUTH_URL")
 	if authURL == "" {
-		authURL = "https://auth.studio.internal"
+		return "/login"
 	}
 	return authURL + "/login"
 }

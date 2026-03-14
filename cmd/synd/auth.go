@@ -23,7 +23,7 @@ func authToken() (string, error) {
 	// Auto-provision a service-user token
 	authURL := os.Getenv("SYND_AUTH_URL")
 	if authURL == "" {
-		authURL = "https://auth.studio.internal"
+		return "", fmt.Errorf("SYND_AUTH_URL or SYND_AUTH_TOKEN must be set")
 	}
 
 	tok, err := provisionServiceUser(authURL)
