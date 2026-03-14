@@ -47,7 +47,7 @@ func reviewURL(cmd *cobra.Command) string {
 	if u := os.Getenv("SYND_REVIEW_URL"); u != "" {
 		return u
 	}
-	return "http://synd.studio.internal"
+	return ""
 }
 
 func baseURL(cmd *cobra.Command) string {

@@ -31,7 +31,7 @@ func TestSendDraftNotification(t *testing.T) {
 		ApprovalToken: "test-token-xyz",
 	}
 
-	err := sendDraftNotification(signal, post, "https://synd.studio.internal")
+	err := sendDraftNotification(signal, post, "https://synd.example.com")
 	if err != nil {
 		t.Fatalf("sendDraftNotification: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestSendDraftNotification(t *testing.T) {
 	if !strings.Contains(capturedMessage, "hello from the generative plane") {
 		t.Errorf("message missing body: %q", capturedMessage)
 	}
-	if !strings.Contains(capturedMessage, "https://synd.studio.internal/drafts/abc-123?token=test-token-xyz") {
+	if !strings.Contains(capturedMessage, "https://synd.example.com/drafts/abc-123?token=test-token-xyz") {
 		t.Errorf("message missing review URL: %q", capturedMessage)
 	}
 }
@@ -68,7 +68,7 @@ func TestSendDraftNotification_LongPost(t *testing.T) {
 		ApprovalToken: "tok",
 	}
 
-	err := sendDraftNotification(signal, post, "https://synd.studio.internal")
+	err := sendDraftNotification(signal, post, "https://synd.example.com")
 	if err != nil {
 		t.Fatalf("sendDraftNotification: %v", err)
 	}

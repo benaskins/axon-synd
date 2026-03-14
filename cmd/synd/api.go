@@ -80,7 +80,7 @@ func (h *apiHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	if signal, ok := signalClientFromEnv(); ok {
 		reviewBase := os.Getenv("SYND_REVIEW_URL")
 		if reviewBase == "" {
-			reviewBase = "https://synd.studio.internal"
+			reviewBase = ""
 		}
 		if err := sendDraftNotification(signal, post, reviewBase); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: signal notification failed: %v\n", err)
@@ -210,5 +210,5 @@ func serviceURL() string {
 	if u := os.Getenv("SYND_SERVICE_URL"); u != "" {
 		return strings.TrimRight(u, "/")
 	}
-	return "http://synd.studio.internal"
+	return ""
 }
