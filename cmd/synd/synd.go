@@ -56,6 +56,15 @@ func runSynd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if platform == "" || platform == "threads" {
+		config, err := threadsConfigFromEnv()
+		if err == nil {
+			if err := syndicateToThreads(ctx, store, post, baseURL(cmd), config); err != nil {
+				return fmt.Errorf("threads: %w", err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -133,6 +142,62 @@ func syndicateToMastodon(ctx context.Context, store *synd.PostStore, post *synd.
 	}
 
 	fmt.Printf("mastodon: %s\n", statusURL)
+	return nil
+}
+
+func threadsConfigFromEnv() (synd.ThreadsConfig, error) {
+	token := os.Getenv("SYND_THREADS_TOKEN")
+	if token == "" {
+		return synd.ThreadsConfig{}, fmt.Errorf("SYND_THREADS_TOKEN must be set")
+	}
+	return synd.ThreadsConfig{
+		AccessToken: token,
+	}, nil
+}
+
+// syndicateToThreads posts to Threads and records the syndication event.
+func syndicateToThreads(ctx context.Context, store *synd.PostStore, post *synd.Post, siteBaseURL string, config synd.ThreadsConfig) error {
+	if post.ImportedFrom == string(synd.Threads) {
+		return nil
+	}
+
+	client := synd.NewThreadsClient(config)
+
+	if err := client.VerifyCredentials(ctx); err != nil {
+		return err
+	}
+
+	var id string
+	var err error
+
+	switch post.Kind {
+	case synd.Long:
+		text := post.Abstract
+		if text == "" {
+			text = post.Title
+		}
+		url := fmt.Sprintf("%s/posts/%s", siteBaseURL, post.ID)
+		id, err = client.PostWithLink(ctx, text, url)
+
+	default:
+		if len([]rune(post.Body)) <= 500 {
+			id, err = client.Post(ctx, post.Body)
+		} else {
+			url := fmt.Sprintf("%s/posts/%s", siteBaseURL, post.ID)
+			truncated := string([]rune(post.Body)[:450]) + "..."
+			id, err = client.PostWithLink(ctx, truncated, url)
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if err := store.Syndicate(ctx, post.ID, synd.Threads, id, ""); err != nil {
+		return fmt.Errorf("record syndication: %w", err)
+	}
+
+	fmt.Printf("threads: %s\n", id)
 	return nil
 }
 
