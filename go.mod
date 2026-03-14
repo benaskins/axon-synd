@@ -3,7 +3,7 @@ module github.com/benaskins/axon-synd
 go 1.26.1
 
 require (
-	github.com/benaskins/axon v0.3.5
+	github.com/benaskins/axon v0.4.0
 	github.com/benaskins/axon-fact v0.1.2-0.20260313052934-ad7453c0a820
 	github.com/benaskins/axon-gate v0.1.4
 	github.com/google/uuid v1.6.0
@@ -37,5 +37,3 @@ require (
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
-
-replace github.com/benaskins/axon => ../axon
