@@ -56,6 +56,8 @@ func runServe(cmd *cobra.Command, args []string) error {
 		interval:   pollInterval,
 	}
 
+	w.cloudflare = cloudflareConfigPtr()
+
 	if doSyndicate {
 		w.bluesky = blueskyConfigPtr()
 		w.mastodon = mastodonConfigPtr()
@@ -101,6 +103,20 @@ func threadsConfigPtr() *synd.ThreadsConfig {
 		return nil
 	}
 	return &cfg
+}
+
+func cloudflareConfigPtr() *synd.CloudflareConfig {
+	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
+	apiToken := os.Getenv("CLOUDFLARE_API_TOKEN")
+	projectName := os.Getenv("CLOUDFLARE_PROJECT_NAME")
+	if accountID == "" || apiToken == "" || projectName == "" {
+		return nil
+	}
+	return &synd.CloudflareConfig{
+		AccountID:   accountID,
+		APIToken:    apiToken,
+		ProjectName: projectName,
+	}
 }
 
 func newStoreFromCmd(cmd *cobra.Command) (*synd.PostStore, *synd.PostProjection) {

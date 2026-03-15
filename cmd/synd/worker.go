@@ -18,6 +18,9 @@ type publishWorker struct {
 	baseURL    string
 	interval   time.Duration
 
+	// Optional deploy config — nil means skip Cloudflare deploy.
+	cloudflare *synd.CloudflareConfig
+
 	// Optional syndication configs — nil means skip that platform.
 	bluesky  *synd.BlueskyConfig
 	mastodon *synd.MastodonConfig
@@ -74,7 +77,9 @@ func (w *publishWorker) publishOne(ctx context.Context, post *synd.Post) error {
 		Author:  "Benjamin Askins",
 	})
 
-	allPosts := w.projection.List()
+	// Include published posts plus the post being published (still "approved" at this point).
+	allPosts := w.projection.PublishedPosts()
+	allPosts = append([]synd.Post{*post}, allPosts...)
 	if err := builder.Build(allPosts, w.siteDir); err != nil {
 		return fmt.Errorf("build site: %w", err)
 	}
@@ -84,6 +89,13 @@ func (w *publishWorker) publishOne(ctx context.Context, post *synd.Post) error {
 	changed, err := synd.GitPublish(w.siteDir, commitMsg)
 	if err != nil {
 		return fmt.Errorf("git publish: %w", err)
+	}
+
+	// Deploy to Cloudflare Pages
+	if w.cloudflare != nil {
+		if err := synd.CloudflareDeploy(*w.cloudflare, w.siteDir); err != nil {
+			return fmt.Errorf("cloudflare deploy: %w", err)
+		}
 	}
 
 	// Emit post.published
@@ -113,7 +125,7 @@ func (w *publishWorker) rebuildSite() error {
 		Author:  "Benjamin Askins",
 	})
 
-	allPosts := w.projection.List()
+	allPosts := w.projection.PublishedPosts()
 	if err := builder.Build(allPosts, w.siteDir); err != nil {
 		return fmt.Errorf("build site: %w", err)
 	}
@@ -121,6 +133,13 @@ func (w *publishWorker) rebuildSite() error {
 	_, err := synd.GitPublish(w.siteDir, "rebuild: site updated")
 	if err != nil {
 		return fmt.Errorf("git publish: %w", err)
+	}
+
+	// Deploy to Cloudflare Pages
+	if w.cloudflare != nil {
+		if err := synd.CloudflareDeploy(*w.cloudflare, w.siteDir); err != nil {
+			return fmt.Errorf("cloudflare deploy: %w", err)
+		}
 	}
 
 	slog.Info("site rebuilt", "posts", len(allPosts))

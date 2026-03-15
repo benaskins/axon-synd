@@ -280,7 +280,9 @@ func (p *PostProjection) Handle(_ context.Context, event fact.Event) error {
 		}
 		p.mu.Lock()
 		if post, ok := p.posts[data.PostID]; ok {
-			post.Body = data.Body
+			if data.Body != "" {
+				post.Body = data.Body
+			}
 			if data.Title != "" {
 				post.Title = data.Title
 			}
@@ -431,6 +433,30 @@ func (p *PostProjection) EngagementFor(postID string) []Engagement {
 	for _, e := range platforms {
 		out = append(out, *e)
 	}
+	return out
+}
+
+// PublishedPosts returns posts with status == published, newest first.
+func (p *PostProjection) PublishedPosts() []Post {
+	p.init()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	var out []Post
+	for _, post := range p.posts {
+		if post.Status == StatusPublished {
+			out = append(out, *post)
+		}
+	}
+
+	for i := 0; i < len(out); i++ {
+		for j := i + 1; j < len(out); j++ {
+			if out[j].CreatedAt.After(out[i].CreatedAt) {
+				out[i], out[j] = out[j], out[i]
+			}
+		}
+	}
+
 	return out
 }
 

@@ -303,6 +303,30 @@ func TestPostStore_ReviseLong(t *testing.T) {
 	}
 }
 
+func TestPostStore_ReviseAbstractOnly_PreservesBody(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	post, _ := store.Create(ctx, Long, "# Full article\n\nWith content.",
+		WithTitle("My Post"),
+		WithAbstract("Original abstract"),
+	)
+
+	// Revise with only an abstract — body should be preserved.
+	err := store.Revise(ctx, post.ID, "", "", "Updated abstract", nil, "ben")
+	if err != nil {
+		t.Fatalf("Revise: %v", err)
+	}
+
+	got := store.Get(post.ID)
+	if got.Body != "# Full article\n\nWith content." {
+		t.Errorf("Body was clobbered: %q", got.Body)
+	}
+	if got.Abstract != "Updated abstract" {
+		t.Errorf("Abstract = %q, want %q", got.Abstract, "Updated abstract")
+	}
+}
+
 func TestPostStore_Approve(t *testing.T) {
 	store := newTestStore(t)
 	ctx := context.Background()
@@ -372,6 +396,37 @@ func TestPostProjection_ApprovedPosts(t *testing.T) {
 	}
 	if approved[0].ID != p2.ID {
 		t.Errorf("approved post = %q, want %q", approved[0].ID, p2.ID)
+	}
+}
+
+func TestPostProjection_PublishedPosts(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	// Draft — should not appear.
+	store.Create(ctx, Short, "still a draft")
+
+	// Approved but not published — should not appear.
+	p2, _ := store.Create(ctx, Short, "approved only")
+	store.Approve(ctx, p2.ID, "ben")
+
+	// Published — should appear.
+	p3, _ := store.Create(ctx, Short, "published post")
+	store.Approve(ctx, p3.ID, "ben")
+	store.Publish(ctx, p3.ID, "https://example.com/posts/"+p3.ID)
+
+	// Deleted — should not appear.
+	p4, _ := store.Create(ctx, Short, "deleted post")
+	store.Approve(ctx, p4.ID, "ben")
+	store.Publish(ctx, p4.ID, "https://example.com/posts/"+p4.ID)
+	store.Delete(ctx, p4.ID, "ben")
+
+	published := store.Projection().PublishedPosts()
+	if len(published) != 1 {
+		t.Fatalf("got %d published posts, want 1", len(published))
+	}
+	if published[0].ID != p3.ID {
+		t.Errorf("published post = %q, want %q", published[0].ID, p3.ID)
 	}
 }
 
