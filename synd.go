@@ -1,5 +1,3 @@
-// Package synd provides a personal syndication engine: publish posts to a
-// canonical static site and syndicate copies to social platforms.
 package synd
 
 import (
