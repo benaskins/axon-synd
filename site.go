@@ -225,7 +225,7 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 {{if eq .Kind "long"}}<h2><a href="{{postURL .}}">{{.Title}}</a></h2>
 <p class="abstract">{{.Abstract}}</p>
 {{else if eq .Kind "image"}}<a href="{{postURL .}}"><p>{{nl2br .Body}}</p></a>
-{{else}}<p>{{nl2br .Body}}</p>
+{{else}}<div class="body short-form">{{renderMarkdown .Body}}</div>
 {{end}}
 </article>
 {{end}}
@@ -264,7 +264,7 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <time datetime="{{formatRFC3339 .Post.CreatedAt}}">{{formatDate .Post.CreatedAt}}</time>
 {{if .Post.Title}}<h2>{{.Post.Title}}</h2>{{end}}
 {{if eq .Post.Kind "long"}}<div class="body long-form">{{renderMarkdown .Post.Body}}</div>
-{{else}}<div class="body">{{nl2br .Post.Body}}</div>
+{{else}}<div class="body short-form">{{renderMarkdown .Post.Body}}</div>
 {{end}}
 </article>
 </main>

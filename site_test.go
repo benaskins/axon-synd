@@ -141,22 +141,22 @@ func TestSiteBuilder_LongPostRendersMarkdown(t *testing.T) {
 	}
 }
 
-func TestSiteBuilder_ShortPostNoMarkdown(t *testing.T) {
+func TestSiteBuilder_ShortPostRendersMarkdown(t *testing.T) {
 	dir := t.TempDir()
 	builder := NewSiteBuilder(testConfig())
 
 	posts := []Post{{
 		ID:        "short-post",
 		Kind:      Short,
-		Body:      "just a thought\nwith a newline",
+		Body:      "check out [example](https://example.com)",
 		CreatedAt: time.Date(2026, 3, 13, 0, 0, 0, 0, time.UTC),
 	}}
 	builder.Build(posts, dir)
 
 	content := readFile(t, filepath.Join(dir, "posts", "short-post", "index.html"))
 
-	if !strings.Contains(content, "just a thought<br>with a newline") {
-		t.Error("short post should use nl2br, not markdown")
+	if !strings.Contains(content, `<a href="https://example.com">example</a>`) {
+		t.Errorf("short post should render markdown links, got: %s", content)
 	}
 }
 

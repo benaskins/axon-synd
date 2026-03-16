@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	synd "github.com/benaskins/axon-synd"
 	"github.com/spf13/cobra"
@@ -124,11 +125,15 @@ func syndicateToMastodon(ctx context.Context, store *synd.PostStore, post *synd.
 		}
 
 	default:
-		if len([]rune(post.Body)) <= 500 {
-			id, statusURL, err = client.Post(ctx, post.Body)
+		plain, links := synd.ExtractMarkdownLinks(post.Body)
+		if len(links) == 1 {
+			textWithout := strings.TrimSpace(plain[:links[0].Start] + plain[links[0].End:])
+			id, statusURL, err = client.PostWithLink(ctx, textWithout, links[0].URL)
+		} else if len([]rune(plain)) <= 500 {
+			id, statusURL, err = client.Post(ctx, plain)
 		} else {
 			url := fmt.Sprintf("%s/posts/%s", siteBaseURL, post.ID)
-			truncated := string([]rune(post.Body)[:450]) + "..."
+			truncated := string([]rune(plain)[:450]) + "..."
 			id, statusURL, err = client.PostWithLink(ctx, truncated, url)
 		}
 	}
@@ -234,11 +239,15 @@ func syndicateToBluesky(ctx context.Context, store *synd.PostStore, post *synd.P
 		}
 
 	default:
-		if len([]rune(post.Body)) <= 300 {
-			uri, cid, err = client.Post(ctx, post.Body)
+		plain, links := synd.ExtractMarkdownLinks(post.Body)
+		if len(links) == 1 {
+			textWithout := strings.TrimSpace(plain[:links[0].Start] + plain[links[0].End:])
+			uri, cid, err = client.PostWithLink(ctx, textWithout, links[0].URL, links[0].Text)
+		} else if len([]rune(plain)) <= 300 {
+			uri, cid, err = client.Post(ctx, plain)
 		} else {
 			url := fmt.Sprintf("%s/posts/%s", siteBaseURL, post.ID)
-			truncated := string([]rune(post.Body)[:250]) + "..."
+			truncated := string([]rune(plain)[:250]) + "..."
 			uri, cid, err = client.PostWithLink(ctx, truncated, url, url)
 		}
 	}
