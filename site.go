@@ -207,7 +207,7 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <title>{{.Config.Title}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=Space+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <link rel="alternate" type="application/rss+xml" title="{{.Config.Title}}" href="/feed.xml">
 </head>
@@ -251,7 +251,7 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <meta property="og:type" content="article">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=Space+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -280,35 +280,38 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 var feedTemplate = `{{define "feed"}}{{end}}`
 
 var styleTemplate = `{{define "style"}}:root {
-  --ink: #1C1917;
-  --cream: #FAF9F7;
-  --rule: #E7E5E4;
-  --muted: #A8A29E;
-  --mid: #78716C;
-  --stone: #57534E;
+  --bg: #0c0c0c;
+  --fg: #e8e8e8;
+  --dim: #444;
+  --muted: #777;
+  --accent: #e04020;
+  --rule: rgba(255, 255, 255, 0.08);
+  --panel-bg: rgba(255, 255, 255, 0.03);
+  color-scheme: dark light;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    --ink: #FAF9F7;
-    --cream: #1C1917;
-    --rule: #2E2A27;
-    --muted: #A8A29E;
-    --mid: #D6D3D1;
-    --stone: #E7E5E4;
+    --bg: #f0ebe4;
+    --fg: #1a1410;
+    --dim: #a08a78;
+    --muted: #5c4d42;
+    --accent: #c04020;
+    --rule: rgba(160, 138, 120, 0.3);
+    --panel-bg: rgba(192, 72, 32, 0.04);
   }
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  background: var(--cream);
-  color: var(--ink);
-  font-family: 'DM Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-weight: 300;
   font-size: 16px;
-  font-weight: 400;
   line-height: 1.7;
-  transition: background 0.7s ease, color 0.7s ease;
+  padding-bottom: 40px;
 }
 
 header {
@@ -318,21 +321,24 @@ header {
 }
 
 .wordmark {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
 }
 
 .wordmark a {
-  color: var(--ink);
+  color: var(--fg);
   text-decoration: none;
 }
 
 .tagline {
-  font-size: 13px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
   font-weight: 400;
-  color: var(--muted);
-  letter-spacing: 0.06em;
+  color: var(--dim);
+  letter-spacing: 0.12em;
   margin-top: 4px;
 }
 
@@ -344,11 +350,12 @@ header {
 }
 
 .lbl {
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--dim);
 }
 
 main {
@@ -359,8 +366,8 @@ main {
 
 main > .lbl { margin-bottom: 32px; }
 
-a { color: var(--ink); text-decoration: none; }
-a:hover { border-bottom: 1px solid var(--ink); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
 article {
   margin-bottom: 32px;
@@ -372,79 +379,83 @@ article:last-child { border-bottom: none; padding-bottom: 0; }
 
 article time {
   display: block;
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--dim);
   margin-bottom: 8px;
 }
 
 article h2 {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: -0.02em;
   margin-bottom: 8px;
 }
 
-article h2 a { border-bottom: 1px solid var(--rule); padding-bottom: 1px; transition: border-color 0.2s; }
-article h2 a:hover { border-color: var(--ink); }
+article h2 a {
+  color: var(--fg);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1px;
+  transition: border-color 0.2s;
+}
+article h2 a:hover { border-color: var(--accent); text-decoration: none; }
 
 article p, article .abstract {
   font-size: 15px;
   line-height: 1.6;
-  color: var(--mid);
+  color: var(--muted);
 }
 
-.body { white-space: pre-wrap; color: var(--mid); }
+.body { white-space: pre-wrap; color: var(--muted); }
 
 .body.long-form {
   white-space: normal;
-  color: var(--ink);
+  color: var(--fg);
 }
 
 .long-form h1 {
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: -0.02em;
   margin: 48px 0 16px;
-  color: var(--ink);
+  color: var(--fg);
 }
 
 .long-form h2 {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: -0.02em;
   margin: 40px 0 12px;
-  color: var(--ink);
+  color: var(--fg);
 }
 
 .long-form h3 {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
   margin: 32px 0 8px;
-  color: var(--ink);
+  color: var(--fg);
 }
 
 .long-form p {
   font-size: 16px;
   line-height: 1.7;
-  color: var(--mid);
+  color: var(--muted);
   margin-bottom: 16px;
 }
 
 .long-form a {
-  color: var(--ink);
-  border-bottom: 1px solid var(--rule);
-  padding-bottom: 1px;
-  transition: border-color 0.2s;
+  color: var(--accent);
+  transition: opacity 0.2s;
 }
-.long-form a:hover { border-color: var(--ink); }
+.long-form a:hover { opacity: 0.8; text-decoration: none; }
 
 .long-form ul, .long-form ol {
   margin: 16px 0;
   padding-left: 24px;
-  color: var(--mid);
+  color: var(--muted);
 }
 
 .long-form li {
@@ -454,38 +465,44 @@ article p, article .abstract {
 }
 
 .long-form pre {
-  background: var(--rule);
-  border-radius: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--rule);
   padding: 16px;
   margin: 24px 0;
   overflow-x: auto;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: 'Space Mono', monospace;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--ink);
+  color: var(--fg);
 }
 
 .long-form code {
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: 'Space Mono', monospace;
   font-size: 14px;
 }
 
 .long-form p code {
-  background: var(--rule);
-  border-radius: 3px;
+  background: var(--panel-bg);
+  border: 1px solid var(--rule);
   padding: 2px 6px;
   font-size: 13px;
 }
 
 .long-form blockquote {
-  border-left: 2px solid var(--rule);
+  border-left: 2px solid var(--accent);
   padding-left: 16px;
   margin: 24px 0;
-  color: var(--stone);
+  color: var(--muted);
   font-style: italic;
 }
 
-.long-form strong { color: var(--ink); font-weight: 600; }
+.long-form strong { color: var(--fg); font-weight: 400; }
+
+.long-form hr {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 40px 0;
+}
 
 footer {
   max-width: 640px;
@@ -497,21 +514,16 @@ footer {
 }
 
 footer a {
-  color: var(--muted);
-  border-bottom: 1px solid var(--rule);
-  padding-bottom: 1px;
-  transition: border-color 0.2s;
+  color: var(--dim);
+  transition: color 0.2s;
 }
-footer a:hover { border-color: var(--muted); }
+footer a:hover { color: var(--accent); text-decoration: none; }
 
 @media (max-width: 480px) {
   header { padding: 32px 20px 20px; }
   main { padding: 32px 20px; }
   footer { padding: 20px 20px 32px; flex-direction: column; gap: 8px; }
-  .wordmark { font-size: 20px; }
 }
-
-body { padding-bottom: 40px; }
 
 .webring {
   position: fixed;
@@ -523,22 +535,22 @@ body { padding-bottom: 40px; }
   justify-content: center;
   gap: 16px;
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  background: var(--cream);
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  background: var(--bg);
   border-top: 1px solid var(--rule);
   z-index: 1000;
 }
 
-.webring-name { color: var(--muted); }
+.webring-name { color: var(--dim); }
 
 .webring a {
-  color: var(--muted);
+  color: var(--dim);
   text-decoration: none;
-  border-bottom: none;
   transition: color 0.2s;
 }
-.webring a:hover { color: var(--mid); border-bottom: none; }
+.webring a:hover { color: var(--accent); text-decoration: none; }
 {{end}}`
 
 var webringTemplate = `{{define "webring"}}
