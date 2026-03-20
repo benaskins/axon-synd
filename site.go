@@ -207,13 +207,19 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <title>{{.Config.Title}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=Space+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@300;400&family=Space+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <link rel="alternate" type="application/rss+xml" title="{{.Config.Title}}" href="/feed.xml">
 </head>
 <body>
 <header>
+<div class="ghost-text">GENERATIVE PLANE</div>
+<div class="header-meta">
+<span class="corner-mark">GP//2026</span>
+<span class="corner-mark">{{.Config.Author}}</span>
+</div>
 <div class="wordmark"><a href="/">{{.Config.Title}}</a></div>
+<div class="accent-stripe"></div>
 <div class="tagline">by {{.Config.Author}}</div>
 </header>
 <hr class="divider">
@@ -251,12 +257,18 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <meta property="og:type" content="article">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=Space+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@300;400&family=Space+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header>
+<div class="ghost-text">{{if .Post.Title}}{{.Post.Title}}{{else}}GP{{end}}</div>
+<div class="header-meta">
+<span class="corner-mark">GP//2026</span>
+<span class="corner-mark">{{.Config.Author}}</span>
+</div>
 <div class="wordmark"><a href="/">{{.Config.Title}}</a></div>
+<div class="accent-stripe"></div>
 </header>
 <hr class="divider">
 <main>
@@ -285,8 +297,10 @@ var styleTemplate = `{{define "style"}}:root {
   --dim: #444;
   --muted: #777;
   --accent: #e04020;
+  --accent-dim: #802010;
   --rule: rgba(255, 255, 255, 0.08);
   --panel-bg: rgba(255, 255, 255, 0.03);
+  --ghost: rgba(255, 255, 255, 0.02);
   color-scheme: dark light;
 }
 
@@ -297,8 +311,10 @@ var styleTemplate = `{{define "style"}}:root {
     --dim: #a08a78;
     --muted: #5c4d42;
     --accent: #c04020;
+    --accent-dim: #d4704a;
     --rule: rgba(160, 138, 120, 0.3);
     --panel-bg: rgba(192, 72, 32, 0.04);
+    --ghost: rgba(192, 72, 32, 0.04);
   }
 }
 
@@ -307,30 +323,74 @@ var styleTemplate = `{{define "style"}}:root {
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: 'Inter', sans-serif;
   font-weight: 300;
   font-size: 16px;
   line-height: 1.7;
+  min-height: 100vh;
+  overflow-x: hidden;
   padding-bottom: 40px;
 }
 
+/* --- Header / Hero --- */
+
 header {
+  position: relative;
   max-width: 640px;
   margin: 0 auto;
   padding: 48px 24px 24px;
+  overflow: hidden;
+}
+
+.ghost-text {
+  position: absolute;
+  top: -0.1em;
+  right: -0.02em;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 12rem;
+  line-height: 0.85;
+  color: var(--ghost);
+  text-transform: uppercase;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: -0.04em;
+}
+
+.corner-mark {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+
+.header-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 16px;
 }
 
 .wordmark {
-  font-family: 'Space Mono', monospace;
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.25em;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 28px;
   text-transform: uppercase;
+  letter-spacing: -0.02em;
+  position: relative;
+  z-index: 1;
 }
 
 .wordmark a {
   color: var(--fg);
   text-decoration: none;
+}
+
+.accent-stripe {
+  height: 3px;
+  background: var(--accent);
+  margin: 12px 0;
+  position: relative;
+  z-index: 1;
 }
 
 .tagline {
@@ -339,15 +399,18 @@ header {
   font-weight: 400;
   color: var(--dim);
   letter-spacing: 0.12em;
-  margin-top: 4px;
+  position: relative;
+  z-index: 1;
 }
 
 .divider {
   max-width: 640px;
   margin: 0 auto;
   border: none;
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--dim);
 }
+
+/* --- Labels --- */
 
 .lbl {
   font-family: 'Space Mono', monospace;
@@ -357,6 +420,8 @@ header {
   text-transform: uppercase;
   color: var(--dim);
 }
+
+/* --- Main --- */
 
 main {
   max-width: 640px;
@@ -369,10 +434,13 @@ main > .lbl { margin-bottom: 32px; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+/* --- Article list --- */
+
 article {
   margin-bottom: 32px;
   padding-bottom: 32px;
   border-bottom: 1px solid var(--rule);
+  position: relative;
 }
 
 article:last-child { border-bottom: none; padding-bottom: 0; }
@@ -391,25 +459,26 @@ article time {
 article h2 {
   font-size: 18px;
   font-weight: 400;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   margin-bottom: 8px;
 }
 
 article h2 a {
   color: var(--fg);
-  border-bottom: 1px solid var(--rule);
-  padding-bottom: 1px;
-  transition: border-color 0.2s;
+  text-decoration: none;
+  transition: color 0.2s;
 }
-article h2 a:hover { border-color: var(--accent); text-decoration: none; }
+article h2 a:hover { color: var(--accent); text-decoration: none; }
 
 article p, article .abstract {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--muted);
 }
 
 .body { white-space: pre-wrap; color: var(--muted); }
+
+/* --- Long-form posts --- */
 
 .body.long-form {
   white-space: normal;
@@ -417,40 +486,44 @@ article p, article .abstract {
 }
 
 .long-form h1 {
-  font-size: 24px;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 28px;
   font-weight: 400;
+  text-transform: uppercase;
   letter-spacing: -0.02em;
   margin: 48px 0 16px;
   color: var(--fg);
 }
 
 .long-form h2 {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 400;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   margin: 40px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
   color: var(--fg);
 }
 
 .long-form h3 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 400;
   margin: 32px 0 8px;
   color: var(--fg);
 }
 
 .long-form p {
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.75;
   color: var(--muted);
   margin-bottom: 16px;
 }
 
 .long-form a {
   color: var(--accent);
-  transition: opacity 0.2s;
+  transition: color 0.2s;
 }
-.long-form a:hover { opacity: 0.8; text-decoration: none; }
+.long-form a:hover { color: var(--accent-dim); text-decoration: none; }
 
 .long-form ul, .long-form ol {
   margin: 16px 0;
@@ -459,8 +532,8 @@ article p, article .abstract {
 }
 
 .long-form li {
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.75;
   margin-bottom: 8px;
 }
 
@@ -471,25 +544,25 @@ article p, article .abstract {
   margin: 24px 0;
   overflow-x: auto;
   font-family: 'Space Mono', monospace;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.6;
   color: var(--fg);
 }
 
 .long-form code {
   font-family: 'Space Mono', monospace;
-  font-size: 14px;
-}
-
-.long-form p code {
-  background: var(--panel-bg);
-  border: 1px solid var(--rule);
-  padding: 2px 6px;
   font-size: 13px;
 }
 
+.long-form p code, .long-form li code {
+  background: var(--panel-bg);
+  border: 1px solid var(--rule);
+  padding: 1px 5px;
+  font-size: 12px;
+}
+
 .long-form blockquote {
-  border-left: 2px solid var(--accent);
+  border-left: 3px solid var(--accent);
   padding-left: 16px;
   margin: 24px 0;
   color: var(--muted);
@@ -500,9 +573,12 @@ article p, article .abstract {
 
 .long-form hr {
   border: none;
-  border-top: 1px solid var(--rule);
-  margin: 40px 0;
+  height: 3px;
+  background: var(--accent);
+  margin: 48px 0;
 }
+
+/* --- Footer --- */
 
 footer {
   max-width: 640px;
@@ -511,19 +587,30 @@ footer {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  border-top: 1px solid var(--dim);
 }
 
 footer a {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
   color: var(--dim);
-  transition: color 0.2s;
+  text-decoration: none;
+  text-transform: uppercase;
+  border: 1px solid var(--dim);
+  padding: 4px 10px;
+  transition: all 0.2s;
 }
-footer a:hover { color: var(--accent); text-decoration: none; }
+footer a:hover { color: var(--fg); border-color: var(--fg); text-decoration: none; }
 
 @media (max-width: 480px) {
   header { padding: 32px 20px 20px; }
+  .ghost-text { font-size: 6rem; }
   main { padding: 32px 20px; }
   footer { padding: 20px 20px 32px; flex-direction: column; gap: 8px; }
 }
+
+/* --- Webring --- */
 
 .webring {
   position: fixed;
@@ -539,7 +626,7 @@ footer a:hover { color: var(--accent); text-decoration: none; }
   font-size: 10px;
   letter-spacing: 0.12em;
   background: var(--bg);
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--dim);
   z-index: 1000;
 }
 
