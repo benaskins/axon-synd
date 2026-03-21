@@ -17,9 +17,10 @@ import (
 
 // SiteConfig holds settings for static site generation.
 type SiteConfig struct {
-	Title   string
-	BaseURL string
-	Author  string
+	Title       string
+	BaseURL     string
+	Author      string
+	Description string
 }
 
 // SiteBuilder generates a static site from posts.
@@ -239,6 +240,17 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>{{.Config.Title}}</title>
+{{if .Config.Description}}<meta name="description" content="{{.Config.Description}}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{.Config.Title}}">
+<meta property="og:description" content="{{.Config.Description}}">
+<meta property="og:image" content="{{.Config.BaseURL}}/og-image.png">
+<meta property="og:url" content="{{.Config.BaseURL}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{.Config.Title}}">
+<meta name="twitter:description" content="{{.Config.Description}}">
+<meta name="twitter:image" content="{{.Config.BaseURL}}/og-image.png">
+<link rel="canonical" href="{{.Config.BaseURL}}">{{end}}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">

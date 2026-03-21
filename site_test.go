@@ -11,9 +11,10 @@ import (
 
 func testConfig() SiteConfig {
 	return SiteConfig{
-		Title:   "Generative Plane",
-		BaseURL: "https://generativeplane.com",
-		Author:  "Benjamin Askins",
+		Title:       "Generative Plane",
+		BaseURL:     "https://generativeplane.com",
+		Author:      "Benjamin Askins",
+		Description: "Long-form writing on software, infrastructure, and the things between.",
 	}
 }
 
