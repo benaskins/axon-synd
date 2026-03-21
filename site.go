@@ -72,7 +72,7 @@ func NewSiteBuilder(config SiteConfig) *SiteBuilder {
 	}
 
 	tmpl := template.Must(template.New("").Funcs(funcMap).Parse(
-		indexTemplate + postTemplate + feedTemplate + styleTemplate + webringTemplate + themeToggleTemplate,
+		indexTemplate + postTemplate + feedTemplate + styleTemplate + themeToggleTemplate,
 	))
 
 	return &SiteBuilder{
@@ -283,7 +283,7 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <div class="lbl">{{.Config.Title}}</div>
 <div class="lbl">&copy; {{.Config.Author}} 2026</div>
 </footer>
-{{template "webring"}}
+
 {{template "themeToggle"}}
 </body>
 </html>{{end}}`
@@ -328,7 +328,7 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <div class="lbl">{{.Config.Title}}</div>
 <div class="lbl"><a href="/">all posts</a></div>
 </footer>
-{{template "webring"}}
+
 {{template "themeToggle"}}
 </body>
 </html>{{end}}`
@@ -707,63 +707,6 @@ footer a:hover { color: var(--fg); border-color: var(--fg); text-decoration: non
 .fixed-control-left { left: 12px; }
 .fixed-control-right { right: 12px; }
 
-/* --- Webring --- */
-
-.webring {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
-  font-family: 'Space Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  background: var(--bg);
-  border-top: 1px solid var(--dim);
-  z-index: 1000;
-}
-
-.webring-name { color: var(--dim); }
-
-.webring a {
-  color: var(--dim);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-.webring a:hover { color: var(--accent); text-decoration: none; }
-{{end}}`
-
-var webringTemplate = `{{define "webring"}}
-<nav class="webring">
-  <a class="webring-prev" href="#">&#8592;</a>
-  <span class="webring-name">generativeplane</span>
-  <a class="webring-next" href="#">&#8594;</a>
-</nav>
-<script>
-(function() {
-  var ring = [
-    { name: 'benjaminaskins', url: 'https://benjaminaskins.com' },
-    { name: 'genlevel', url: 'https://genlevel.com' },
-    { name: 'generativeplane', url: 'https://generativeplane.com' },
-    { name: 'isitconscious', url: 'https://isitconscious.xyz' }
-  ];
-  var host = location.hostname.replace('www.', '');
-  var idx = ring.findIndex(function(s) { return host.indexOf(s.name) !== -1; });
-  if (idx === -1) idx = 0;
-  var prev = ring[(idx - 1 + ring.length) % ring.length];
-  var next = ring[(idx + 1) % ring.length];
-  var nav = document.querySelector('.webring');
-  nav.querySelector('.webring-prev').href = prev.url;
-  nav.querySelector('.webring-prev').textContent = '\u2190 ' + prev.name;
-  nav.querySelector('.webring-next').href = next.url;
-  nav.querySelector('.webring-next').textContent = next.name + ' \u2192';
-  nav.querySelector('.webring-name').textContent = ring[idx].name;
-})();
-</script>
 {{end}}`
 
 var themeToggleTemplate = `{{define "themeToggle"}}
