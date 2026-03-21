@@ -2,6 +2,8 @@ package synd
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"html/template"
@@ -54,6 +56,23 @@ func NewSiteBuilder(config SiteConfig) *SiteBuilder {
 		"postURL": func(p Post) string {
 			return fmt.Sprintf("/posts/%s", p.ID)
 		},
+		"ghostWord": func(p Post) string {
+			if p.Title != "" {
+				words := strings.Fields(p.Title)
+				if len(words) > 3 {
+					return strings.ToUpper(strings.Join(words[:3], " "))
+				}
+				return strings.ToUpper(p.Title)
+			}
+			words := strings.Fields(p.Body)
+			if len(words) > 3 {
+				return strings.ToUpper(strings.Join(words[:3], " "))
+			}
+			return strings.ToUpper(p.Body)
+		},
+		"isOdd": func(i int) bool {
+			return i%2 != 0
+		},
 	}
 
 	tmpl := template.Must(template.New("").Funcs(funcMap).Parse(
@@ -78,10 +97,20 @@ func (b *SiteBuilder) Build(posts []Post, outputDir string) error {
 		}
 	}
 
+	// Style — render first so we can hash it for cache busting
+	if err := b.renderFile(filepath.Join(outputDir, "style.css"), "style", nil); err != nil {
+		return fmt.Errorf("render style: %w", err)
+	}
+	styleHash, err := fileHash(filepath.Join(outputDir, "style.css"))
+	if err != nil {
+		return fmt.Errorf("hash style: %w", err)
+	}
+
 	// Index page
 	if err := b.renderFile(filepath.Join(outputDir, "index.html"), "index", map[string]any{
-		"Config": b.config,
-		"Posts":  posts,
+		"Config":    b.config,
+		"Posts":     posts,
+		"StyleHash": styleHash,
 	}); err != nil {
 		return fmt.Errorf("render index: %w", err)
 	}
@@ -93,8 +122,9 @@ func (b *SiteBuilder) Build(posts []Post, outputDir string) error {
 			return fmt.Errorf("mkdir %s: %w", dir, err)
 		}
 		if err := b.renderFile(filepath.Join(dir, "index.html"), "post", map[string]any{
-			"Config": b.config,
-			"Post":   post,
+			"Config":    b.config,
+			"Post":      post,
+			"StyleHash": styleHash,
 		}); err != nil {
 			return fmt.Errorf("render post %s: %w", post.ID, err)
 		}
@@ -103,11 +133,6 @@ func (b *SiteBuilder) Build(posts []Post, outputDir string) error {
 	// RSS feed
 	if err := b.buildFeed(posts, filepath.Join(outputDir, "feed.xml")); err != nil {
 		return fmt.Errorf("render feed: %w", err)
-	}
-
-	// Style
-	if err := b.renderFile(filepath.Join(outputDir, "style.css"), "style", nil); err != nil {
-		return fmt.Errorf("render style: %w", err)
 	}
 
 	return nil
@@ -190,6 +215,15 @@ func (b *SiteBuilder) buildFeed(posts []Post, path string) error {
 	return os.WriteFile(path, append(header, output...), 0o644)
 }
 
+func fileHash(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:])[:12], nil
+}
+
 func truncateText(s string, n int) string {
 	if len(s) <= n {
 		return s
@@ -207,8 +241,8 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <title>{{.Config.Title}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@300;400&family=Space+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css?v={{.StyleHash}}">
 <link rel="alternate" type="application/rss+xml" title="{{.Config.Title}}" href="/feed.xml">
 </head>
 <body>
@@ -225,13 +259,14 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <hr class="divider">
 <main>
 <div class="lbl">Posts</div>
-{{range .Posts}}
+{{range $i, $p := .Posts}}
 <article>
-<time datetime="{{formatRFC3339 .CreatedAt}}">{{formatDate .CreatedAt}}</time>
-{{if eq .Kind "long"}}<h2><a href="{{postURL .}}">{{.Title}}</a></h2>
-<p class="abstract">{{.Abstract}}</p>
-{{else if eq .Kind "image"}}<a href="{{postURL .}}"><p>{{nl2br .Body}}</p></a>
-{{else}}<div class="body short-form">{{renderMarkdown .Body}}</div>
+<div class="article-ghost {{if isOdd $i}}article-ghost-left{{else}}article-ghost-right{{end}}">{{ghostWord $p}}</div>
+<time datetime="{{formatRFC3339 $p.CreatedAt}}">{{formatDate $p.CreatedAt}}</time>
+{{if eq $p.Kind "long"}}<h2><a href="{{postURL $p}}">{{$p.Title}}</a></h2>
+<p class="abstract">{{$p.Abstract}}</p>
+{{else if eq $p.Kind "image"}}<a href="{{postURL $p}}"><p>{{nl2br $p.Body}}</p></a>
+{{else}}<div class="body short-form">{{renderMarkdown $p.Body}}</div>
 {{end}}
 </article>
 {{end}}
@@ -257,8 +292,8 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <meta property="og:type" content="article">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@300;400&family=Space+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css?v={{.StyleHash}}">
 </head>
 <body>
 <header>
@@ -274,7 +309,7 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <main>
 <article>
 <time datetime="{{formatRFC3339 .Post.CreatedAt}}">{{formatDate .Post.CreatedAt}}</time>
-{{if .Post.Title}}<h2>{{.Post.Title}}</h2>{{end}}
+{{if and .Post.Title (ne .Post.Kind "long")}}<h2>{{.Post.Title}}</h2>{{end}}
 {{if eq .Post.Kind "long"}}<div class="body long-form">{{renderMarkdown .Post.Body}}</div>
 {{else}}<div class="body short-form">{{renderMarkdown .Post.Body}}</div>
 {{end}}
@@ -323,9 +358,9 @@ var styleTemplate = `{{define "style"}}:root {
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: 'Inter', sans-serif;
-  font-weight: 300;
-  font-size: 16px;
+  font-family: 'Space Mono', monospace;
+  font-weight: 400;
+  font-size: 14px;
   line-height: 1.7;
   min-height: 100vh;
   overflow-x: hidden;
@@ -445,6 +480,22 @@ article {
 
 article:last-child { border-bottom: none; padding-bottom: 0; }
 
+.article-ghost {
+  position: absolute;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 5rem;
+  line-height: 0.85;
+  color: var(--ghost);
+  text-transform: uppercase;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: -0.04em;
+  top: -0.2em;
+  z-index: 0;
+}
+.article-ghost-right { right: -0.5em; }
+.article-ghost-left { left: -0.5em; }
+
 article time {
   display: block;
   font-family: 'Space Mono', monospace;
@@ -471,7 +522,7 @@ article h2 a {
 article h2 a:hover { color: var(--accent); text-decoration: none; }
 
 article p, article .abstract {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--muted);
 }
@@ -513,7 +564,7 @@ article p, article .abstract {
 }
 
 .long-form p {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.75;
   color: var(--muted);
   margin-bottom: 16px;
@@ -532,7 +583,7 @@ article p, article .abstract {
 }
 
 .long-form li {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.75;
   margin-bottom: 8px;
 }
@@ -606,6 +657,7 @@ footer a:hover { color: var(--fg); border-color: var(--fg); text-decoration: non
 @media (max-width: 480px) {
   header { padding: 32px 20px 20px; }
   .ghost-text { font-size: 6rem; }
+  .article-ghost { font-size: 3rem; }
   main { padding: 32px 20px; }
   footer { padding: 20px 20px 32px; flex-direction: column; gap: 8px; }
 }

@@ -247,6 +247,46 @@ func TestSiteBuilder_Style(t *testing.T) {
 	}
 }
 
+func TestSiteBuilder_StyleCacheBust(t *testing.T) {
+	dir := t.TempDir()
+	builder := NewSiteBuilder(testConfig())
+	builder.Build(testPosts(), dir)
+
+	index := readFile(t, filepath.Join(dir, "index.html"))
+	post := readFile(t, filepath.Join(dir, "posts", "post-002", "index.html"))
+
+	// Both should have a cache-busting query param on style.css
+	if !strings.Contains(index, `/style.css?v=`) {
+		t.Error("index missing cache-bust param on style.css")
+	}
+	if !strings.Contains(post, `/style.css?v=`) {
+		t.Error("post page missing cache-bust param on style.css")
+	}
+
+	// Hash should be consistent across pages
+	extractHash := func(content string) string {
+		idx := strings.Index(content, "/style.css?v=")
+		if idx == -1 {
+			return ""
+		}
+		start := idx + len("/style.css?v=")
+		end := strings.Index(content[start:], `"`)
+		return content[start : start+end]
+	}
+
+	indexHash := extractHash(index)
+	postHash := extractHash(post)
+	if indexHash == "" || postHash == "" {
+		t.Fatal("could not extract style hash")
+	}
+	if indexHash != postHash {
+		t.Errorf("style hash mismatch: index=%q post=%q", indexHash, postHash)
+	}
+	if len(indexHash) < 8 {
+		t.Errorf("style hash too short: %q", indexHash)
+	}
+}
+
 func assertFileExists(t *testing.T, path string) {
 	t.Helper()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
