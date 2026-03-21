@@ -72,7 +72,7 @@ func NewSiteBuilder(config SiteConfig) *SiteBuilder {
 	}
 
 	tmpl := template.Must(template.New("").Funcs(funcMap).Parse(
-		indexTemplate + postTemplate + feedTemplate + styleTemplate + webringTemplate,
+		indexTemplate + postTemplate + feedTemplate + styleTemplate + webringTemplate + themeToggleTemplate,
 	))
 
 	return &SiteBuilder{
@@ -284,6 +284,7 @@ var indexTemplate = `{{define "index"}}<!DOCTYPE html>
 <div class="lbl">&copy; {{.Config.Author}} 2026</div>
 </footer>
 {{template "webring"}}
+{{template "themeToggle"}}
 </body>
 </html>{{end}}`
 
@@ -328,6 +329,7 @@ var postTemplate = `{{define "post"}}<!DOCTYPE html>
 <div class="lbl"><a href="/">all posts</a></div>
 </footer>
 {{template "webring"}}
+{{template "themeToggle"}}
 </body>
 </html>{{end}}`
 
@@ -346,8 +348,8 @@ var styleTemplate = `{{define "style"}}:root {
   color-scheme: dark light;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
+[data-theme="light"],
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
     --bg: #f0ebe4;
     --fg: #1a1410;
     --dim: #a08a78;
@@ -357,6 +359,19 @@ var styleTemplate = `{{define "style"}}:root {
     --rule: rgba(160, 138, 120, 0.3);
     --panel-bg: rgba(192, 72, 32, 0.04);
     --ghost: rgba(192, 72, 32, 0.04);
+}}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c0c0c;
+    --fg: #e8e8e8;
+    --dim: #444;
+    --muted: #777;
+    --accent: #e04020;
+    --accent-dim: #802010;
+    --rule: rgba(255, 255, 255, 0.08);
+    --panel-bg: rgba(255, 255, 255, 0.03);
+    --ghost: rgba(255, 255, 255, 0.02);
   }
 }
 
@@ -371,7 +386,8 @@ body {
   line-height: 1.7;
   min-height: 100vh;
   overflow-x: hidden;
-  padding-bottom: 40px;
+  padding-bottom: 48px;
+  transition: background 0.4s ease, color 0.4s ease;
 }
 
 /* --- Header / Hero --- */
@@ -669,6 +685,28 @@ footer a:hover { color: var(--fg); border-color: var(--fg); text-decoration: non
   footer { padding: 20px 20px 32px; flex-direction: column; gap: 8px; }
 }
 
+/* --- Fixed controls --- */
+
+.fixed-control {
+  position: fixed;
+  bottom: 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: lowercase;
+  color: var(--dim);
+  background: none;
+  border: 1px solid var(--dim);
+  cursor: pointer;
+  padding: 4px 10px;
+  text-decoration: none;
+  z-index: 999;
+  transition: color 0.2s, border-color 0.2s;
+}
+.fixed-control:hover { color: var(--fg); border-color: var(--fg); }
+.fixed-control-left { left: 12px; }
+.fixed-control-right { right: 12px; }
+
 /* --- Webring --- */
 
 .webring {
@@ -724,6 +762,28 @@ var webringTemplate = `{{define "webring"}}
   nav.querySelector('.webring-next').href = next.url;
   nav.querySelector('.webring-next').textContent = next.name + ' \u2192';
   nav.querySelector('.webring-name').textContent = ring[idx].name;
+})();
+</script>
+{{end}}`
+
+var themeToggleTemplate = `{{define "themeToggle"}}
+<button class="fixed-control fixed-control-left" id="themeToggle">dark</button>
+<script>
+(function() {
+  var stored = localStorage.getItem('theme');
+  var system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  var theme = stored || system;
+  document.documentElement.setAttribute('data-theme', theme);
+  var btn = document.getElementById('themeToggle');
+  if (btn) {
+    btn.textContent = theme;
+    btn.addEventListener('click', function() {
+      var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      btn.textContent = next;
+    });
+  }
 })();
 </script>
 {{end}}`
