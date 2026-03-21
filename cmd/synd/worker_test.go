@@ -113,7 +113,7 @@ func initTestGitRepo(t *testing.T) string {
 
 	// Init a local repo that pushes to the bare remote
 	dir := t.TempDir()
-	gitRun(t, dir, "init")
+	gitRun(t, dir, "init", "-b", "main")
 	gitRun(t, dir, "config", "user.email", "test@test.com")
 	gitRun(t, dir, "config", "user.name", "Test")
 	gitRun(t, dir, "remote", "add", "origin", remote)
