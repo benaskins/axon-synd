@@ -69,14 +69,18 @@ func (w *publishWorker) publishApproved(ctx context.Context) int {
 	return published
 }
 
-func (w *publishWorker) publishOne(ctx context.Context, post *synd.Post) error {
-	// Build the static site
-	builder := synd.NewSiteBuilder(synd.SiteConfig{
+func (w *publishWorker) siteConfig() synd.SiteConfig {
+	return synd.SiteConfig{
 		Title:       "Generative Plane",
 		BaseURL:     w.baseURL,
 		Author:      "Benjamin Askins",
 		Description: "Long-form writing on software, infrastructure, and the things between.",
-	})
+	}
+}
+
+func (w *publishWorker) publishOne(ctx context.Context, post *synd.Post) error {
+	// Build the static site
+	builder := synd.NewSiteBuilder(w.siteConfig())
 
 	// Include published posts plus the post being published (still "approved" at this point).
 	allPosts := w.projection.PublishedPosts()
@@ -120,12 +124,7 @@ func (w *publishWorker) publishOne(ctx context.Context, post *synd.Post) error {
 
 // rebuildSite rebuilds the static site from all posts and pushes to git.
 func (w *publishWorker) rebuildSite() error {
-	builder := synd.NewSiteBuilder(synd.SiteConfig{
-		Title:       "Generative Plane",
-		BaseURL:     w.baseURL,
-		Author:      "Benjamin Askins",
-		Description: "Long-form writing on software, infrastructure, and the things between.",
-	})
+	builder := synd.NewSiteBuilder(w.siteConfig())
 
 	allPosts := w.projection.PublishedPosts()
 	if err := builder.Build(allPosts, w.siteDir); err != nil {
