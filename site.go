@@ -40,12 +40,7 @@ func NewSiteBuilder(config SiteConfig) *SiteBuilder {
 		"formatRFC3339": func(t time.Time) string {
 			return t.Format(time.RFC3339)
 		},
-		"truncate": func(s string, n int) string {
-			if len(s) <= n {
-				return s
-			}
-			return s[:n] + "..."
-		},
+		"truncate": truncateText,
 		"nl2br": func(s string) template.HTML {
 			return template.HTML(strings.ReplaceAll(template.HTMLEscapeString(s), "\n", "<br>"))
 		},
