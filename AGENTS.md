@@ -39,17 +39,35 @@ New drafts trigger Signal notifications via axon-gate's SignalClient, linking to
 
 ## Key files
 
+### Domain package
+
+- `doc.go` — package documentation
 - `synd.go` — Post, event types, Platform constants
 - `store.go` — PostStore, PostProjection (event-sourced read model)
 - `postgres_store.go` — PostgresEventStore (persistent fact.EventStore)
+- `migrations.go` — embedded SQL migrations (`migrations/*.sql`) via `embed.FS`
 - `site.go` — SiteBuilder
 - `bluesky.go` / `mastodon.go` / `threads.go` — platform clients
 - `cloudflare.go` — Cloudflare Pages deploy
 - `git.go` — git commit and push
 - `markdown.go` — markdown link extraction
-- `cmd/synd/main.go` — CLI entry point
+
+### CLI (`cmd/synd`)
+
+- `cmd/synd/main.go` — CLI entry point and root Cobra command
+- `cmd/synd/serve.go` — `synd serve` command, starts HTTP server and background worker
+- `cmd/synd/api.go` — HTTP API handler (create, approve, delete, list posts)
+- `cmd/synd/web.go` — web UI handler for draft review pages (uses embedded HTML templates)
 - `cmd/synd/worker.go` — background publish and syndication worker
 - `cmd/synd/notify.go` — Signal notifications via axon-gate
+- `cmd/synd/auth.go` — CLI authentication (token provisioning and authed HTTP requests)
+- `cmd/synd/post.go` — `synd post` command (create a draft)
+- `cmd/synd/posts.go` — `synd posts` command (list recent posts)
+- `cmd/synd/drafts.go` — `synd drafts` command (list posts awaiting approval)
+- `cmd/synd/approve.go` — `synd approve` command (approve a draft)
+- `cmd/synd/revise.go` — `synd revise` command (edit a post)
+- `cmd/synd/delete.go` — `synd delete` command (remove a post)
+- `cmd/synd/synd.go` — `synd synd` command (syndicate to platforms)
 
 ## Dependencies
 
