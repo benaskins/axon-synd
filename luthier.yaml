@@ -1,0 +1,10 @@
+name: axon-synd
+purpose: Personal syndication engine
+use_when: Blog/social publishing
+deterministic: true
+snippet:
+  imports:
+    - path: github.com/benaskins/axon-synd
+      alias: synd
+  requires:
+    - github.com/benaskins/axon-synd
