@@ -40,15 +40,6 @@ func siteDir(cmd *cobra.Command) string {
 	return ""
 }
 
-func reviewURL(cmd *cobra.Command) string {
-	if u, _ := cmd.Flags().GetString("review-url"); u != "" {
-		return u
-	}
-	if u := os.Getenv("SYND_REVIEW_URL"); u != "" {
-		return u
-	}
-	return ""
-}
 
 func baseURL(cmd *cobra.Command) string {
 	if u, _ := cmd.Flags().GetString("base-url"); u != "" {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	synd "github.com/benaskins/axon-synd"
@@ -236,21 +235,6 @@ func TestDraftsList(t *testing.T) {
 	}
 }
 
-func setupTestSiteRepo(t *testing.T) string {
-	t.Helper()
-	remote := t.TempDir()
-	synd.TestGit(t, remote, "init", "--bare")
-
-	dir := t.TempDir()
-	synd.TestGit(t, dir, "clone", remote, "site")
-	siteDir := dir + "/site"
-
-	os.WriteFile(siteDir+"/CNAME", []byte("test.example.com"), 0o644)
-	synd.TestGit(t, siteDir, "add", "-A")
-	synd.TestGit(t, siteDir, "commit", "-m", "initial")
-	synd.TestGit(t, siteDir, "push", "-u", "origin", "main")
-	return siteDir
-}
 
 func TestSyndicateBluesky_AuthFailure(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -17,12 +17,8 @@ var mdLinkRe = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 // preserved as-is (backtick-wrapped content is not treated as links).
 func ExtractMarkdownLinks(s string) (string, []Link) {
 	var links []Link
-	plain := mdLinkRe.ReplaceAllStringFunc(s, func(match string) string {
-		return "" // placeholder, replaced below
-	})
-	// rebuild properly tracking byte offsets
-	plain = ""
-	links = nil
+	// Build plain text tracking byte offsets
+	plain := ""
 	last := 0
 	for _, loc := range mdLinkRe.FindAllStringSubmatchIndex(s, -1) {
 		plain += s[last:loc[0]]
