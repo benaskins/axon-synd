@@ -12,6 +12,7 @@ require (
 )
 
 require (
+	github.com/benaskins/axon-rule v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/caarlos0/env/v11 v11.3.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

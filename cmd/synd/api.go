@@ -131,7 +131,8 @@ func (h *apiHandler) ApprovePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
-	if post.Status != synd.StatusDraft {
+	candidate := synd.PostCandidate{Post: *post}
+	if !synd.CanApprove.Check(candidate).OK {
 		http.Error(w, fmt.Sprintf("post is %s, not draft", post.Status), http.StatusConflict)
 		return
 	}
