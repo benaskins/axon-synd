@@ -22,6 +22,21 @@ func init() {
 func runDelete(cmd *cobra.Command, args []string) error {
 	postID := args[0]
 
+	// Direct database path — no running server required.
+	if dsn := databaseURL(cmd); dsn != "" {
+		store, _ := newStoreFromCmd(cmd)
+		post := store.Get(postID)
+		if post == nil {
+			return fmt.Errorf("post %s not found", postID)
+		}
+		if err := store.Delete(cmd.Context(), postID, "synd-cli"); err != nil {
+			return fmt.Errorf("delete: %w", err)
+		}
+		fmt.Printf("deleted: %s\n", postID)
+		return nil
+	}
+
+	// API path — requires running server and auth.
 	url := fmt.Sprintf("%s/api/posts/%s", serviceURL(), postID)
 	req, err := authedRequest("DELETE", url, nil)
 	if err != nil {
