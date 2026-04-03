@@ -24,6 +24,21 @@ func init() {
 func runApprove(cmd *cobra.Command, args []string) error {
 	postID := args[0]
 
+	// Direct database path.
+	if dsn := databaseURL(cmd); dsn != "" {
+		store, _ := newStoreFromCmd(cmd)
+		post := store.Get(postID)
+		if post == nil {
+			return fmt.Errorf("post %s not found", postID)
+		}
+		if err := store.Approve(cmd.Context(), postID, "synd-cli"); err != nil {
+			return fmt.Errorf("approve: %w", err)
+		}
+		fmt.Printf("approved: %s\n", postID)
+		return nil
+	}
+
+	// API path.
 	url := fmt.Sprintf("%s/api/drafts/%s/approve", serviceURL(), postID)
 	req, err := authedRequest("POST", url, nil)
 	if err != nil {

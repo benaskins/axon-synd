@@ -41,7 +41,8 @@ func runPost(cmd *cobra.Command, args []string) error {
 	abstract, _ := cmd.Flags().GetString("abstract")
 	tags, _ := cmd.Flags().GetStringSlice("tags")
 
-	var req createPostRequest
+	var kind synd.PostKind
+	var body string
 
 	switch {
 	case isLong:
@@ -52,42 +53,57 @@ func runPost(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("read %s: %w", args[0], err)
 		}
-		body := string(data)
+		body = string(data)
 		if title == "" {
 			title = extractTitle(body)
 		}
 		if abstract == "" {
 			abstract = extractAbstract(body)
 		}
-		req = createPostRequest{
-			Kind:     synd.Long,
-			Body:     body,
-			Title:    title,
-			Abstract: abstract,
-			Tags:     tags,
-		}
+		kind = synd.Long
 	case imagePath != "":
-		body := strings.Join(args, " ")
+		body = strings.Join(args, " ")
 		if body == "" {
 			return fmt.Errorf("--image requires caption text")
 		}
-		req = createPostRequest{
-			Kind: synd.Image,
-			Body: body,
-			Tags: tags,
-		}
+		kind = synd.Image
 	default:
-		body := strings.Join(args, " ")
+		body = strings.Join(args, " ")
 		if body == "" {
 			return fmt.Errorf("post text required")
 		}
-		req = createPostRequest{
-			Kind: synd.Short,
-			Body: body,
-			Tags: tags,
-		}
+		kind = synd.Short
 	}
 
+	// Direct database path.
+	if dsn := databaseURL(cmd); dsn != "" {
+		store, _ := newStoreFromCmd(cmd)
+		var opts []synd.PostOption
+		if title != "" {
+			opts = append(opts, synd.WithTitle(title))
+		}
+		if abstract != "" {
+			opts = append(opts, synd.WithAbstract(abstract))
+		}
+		if len(tags) > 0 {
+			opts = append(opts, synd.WithTags(tags...))
+		}
+		post, err := store.Create(cmd.Context(), kind, body, opts...)
+		if err != nil {
+			return fmt.Errorf("create: %w", err)
+		}
+		fmt.Printf("draft: %s (%s) — awaiting approval\n", post.ID, post.Kind)
+		return nil
+	}
+
+	// API path.
+	req := createPostRequest{
+		Kind:     kind,
+		Body:     body,
+		Title:    title,
+		Abstract: abstract,
+		Tags:     tags,
+	}
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
