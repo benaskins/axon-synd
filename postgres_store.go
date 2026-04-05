@@ -12,8 +12,8 @@ import (
 )
 
 // PostgresEventStore implements fact.EventStore backed by PostgreSQL.
-// The caller is responsible for opening the database (via axon.OpenDB)
-// and running migrations (via axon.RunMigrations) before constructing the store.
+// The caller is responsible for opening the database (via pool.NewPool)
+// and running migrations (via migration.Run) before constructing the store.
 type PostgresEventStore struct {
 	db             *sql.DB
 	projectors     []fact.Projector

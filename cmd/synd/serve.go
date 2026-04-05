@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/benaskins/axon"
+	"github.com/benaskins/axon-base/migration"
+	"github.com/benaskins/axon-base/pool"
 	fact "github.com/benaskins/axon-fact"
 	synd "github.com/benaskins/axon-synd"
 	"github.com/spf13/cobra"
@@ -128,12 +130,17 @@ func newStoreFromCmd(cmd *cobra.Command) (*synd.PostStore, *synd.PostProjection)
 }
 
 func newPersistentStore(ctx context.Context, dsn string) (*synd.PostStore, *synd.PostProjection) {
-	db, err := axon.OpenDB(dsn, "synd")
+	p, err := pool.NewPool(ctx, dsn, "synd")
 	if err != nil {
 		slog.Error("open database", "error", err)
 		os.Exit(1)
 	}
-	if err := axon.RunMigrations(db, synd.Migrations); err != nil {
+	db, err := p.StdDB()
+	if err != nil {
+		slog.Error("get sql.DB handle", "error", err)
+		os.Exit(1)
+	}
+	if err := migration.Run(db, synd.Migrations, "migrations"); err != nil {
 		slog.Error("run migrations", "error", err)
 		os.Exit(1)
 	}
