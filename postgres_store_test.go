@@ -2,17 +2,21 @@ package synd
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
+	"math/rand"
 	"os"
 	"testing"
-
 	"time"
 
-	"github.com/benaskins/axon"
+	"github.com/benaskins/axon-base/migration"
+	"github.com/benaskins/axon-base/pool"
 	fact "github.com/benaskins/axon-fact"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
-func openTestEventStore(t *testing.T) *PostgresEventStore {
+func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
 	dsn := os.Getenv("DATABASE_URL")
@@ -20,8 +24,43 @@ func openTestEventStore(t *testing.T) *PostgresEventStore {
 		dsn = "postgres://localhost:5432/lamina?sslmode=disable"
 	}
 
-	db := axon.OpenTestDB(t, dsn, Migrations)
+	schema := fmt.Sprintf("test_%d_%d", time.Now().UnixNano(), rand.Int()) //nolint:gosec // test-only schema name
 
+	p, err := pool.NewPool(context.Background(), dsn, schema)
+	if err != nil {
+		t.Fatalf("open test pool: %v", err)
+	}
+
+	db, err := p.StdDB()
+	if err != nil {
+		p.Close()
+		t.Fatalf("get sql.DB: %v", err)
+	}
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
+	if err := migration.Run(db, Migrations, "migrations"); err != nil {
+		db.Close()
+		t.Fatalf("run migrations: %v", err)
+	}
+
+	t.Cleanup(func() {
+		db.Close()
+		p.Close()
+		cleanDB, err := sql.Open("pgx", dsn)
+		if err == nil {
+			cleanDB.Exec("DROP SCHEMA " + pgx.Identifier{schema}.Sanitize() + " CASCADE")
+			cleanDB.Close()
+		}
+	})
+
+	return db
+}
+
+func openTestEventStore(t *testing.T) *PostgresEventStore {
+	t.Helper()
+	db := openTestDB(t)
 	projection := &PostProjection{}
 	store := NewPostgresEventStore(db, WithPgProjector(projection))
 	return store
@@ -34,11 +73,11 @@ func skipIfNoPostgres(t *testing.T) {
 		dsn = "postgres://localhost:5432/lamina?sslmode=disable"
 	}
 
-	db, err := axon.OpenDB(dsn, "ping_test")
+	p, err := pool.NewPool(context.Background(), dsn, "ping_test")
 	if err != nil {
 		t.Skipf("skipping postgres test: %v", err)
 	}
-	db.Close()
+	p.Close()
 }
 
 func TestPostgresEventStore_Append(t *testing.T) {
@@ -274,11 +313,7 @@ func TestPostgresEventStore_ReplayIntoProjection(t *testing.T) {
 	skipIfNoPostgres(t)
 	ctx := context.Background()
 
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://localhost:5432/lamina?sslmode=disable"
-	}
-	db := axon.OpenTestDB(t, dsn, Migrations)
+	db := openTestDB(t)
 
 	// Create store with projection, write some events
 	projection1 := &PostProjection{}
