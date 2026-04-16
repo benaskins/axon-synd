@@ -40,7 +40,7 @@ func openTestDB(t *testing.T) *sql.DB {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	if err := migration.Run(db, Migrations, "migrations"); err != nil {
+	if err := migration.Run(db, fact.Migrations, "migrations"); err != nil {
 		db.Close()
 		t.Fatalf("run migrations: %v", err)
 	}
@@ -58,11 +58,11 @@ func openTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func openTestEventStore(t *testing.T) *PostgresEventStore {
+func openTestEventStore(t *testing.T) *fact.PostgresStore {
 	t.Helper()
 	db := openTestDB(t)
 	projection := &PostProjection{}
-	store := NewPostgresEventStore(db, WithPgProjector(projection))
+	store := fact.NewPostgresStore(db, fact.WithPgProjector(projection))
 	return store
 }
 
@@ -131,7 +131,6 @@ func TestPostgresEventStore_AppendMultiple(t *testing.T) {
 
 	stream := "post-" + uuid.New().String()
 
-	// First append
 	events1 := []fact.Event{
 		{ID: uuid.New().String(), Type: EventPostCreated, Data: MarshalData(PostCreated{ID: "p1", Kind: Short, Body: "first"})},
 	}
@@ -139,7 +138,6 @@ func TestPostgresEventStore_AppendMultiple(t *testing.T) {
 		t.Fatalf("Append 1: %v", err)
 	}
 
-	// Second append — sequence should continue
 	events2 := []fact.Event{
 		{ID: uuid.New().String(), Type: EventPostPublished, Data: MarshalData(PostPublished{ID: "p1", URL: "https://example.com/p1"})},
 	}
@@ -235,7 +233,6 @@ func TestPostgresEventStore_StreamIsolation(t *testing.T) {
 		t.Errorf("stream2: got %d events, want 1", len(loaded2))
 	}
 
-	// Both streams should have sequence 1
 	if loaded1[0].Sequence != 1 {
 		t.Errorf("stream1 sequence = %d, want 1", loaded1[0].Sequence)
 	}
@@ -281,7 +278,6 @@ func TestPostgresEventStore_LoadAll(t *testing.T) {
 	store := openTestEventStore(t)
 	ctx := context.Background()
 
-	// Create events across multiple streams
 	store.Append(ctx, "post-aaa", []fact.Event{
 		{ID: uuid.New().String(), Type: EventPostCreated, Data: MarshalData(PostCreated{ID: "aaa", Kind: Short, Body: "first"})},
 	})
@@ -301,7 +297,6 @@ func TestPostgresEventStore_LoadAll(t *testing.T) {
 		t.Fatalf("got %d events, want 3", len(all))
 	}
 
-	// Should be ordered by occurred_at, sequence
 	for i := 1; i < len(all); i++ {
 		if all[i].OccurredAt.Before(all[i-1].OccurredAt) {
 			t.Errorf("event[%d] occurred before event[%d]", i, i-1)
@@ -315,9 +310,8 @@ func TestPostgresEventStore_ReplayIntoProjection(t *testing.T) {
 
 	db := openTestDB(t)
 
-	// Create store with projection, write some events
 	projection1 := &PostProjection{}
-	store1 := NewPostgresEventStore(db, WithPgProjector(projection1))
+	store1 := fact.NewPostgresStore(db, fact.WithPgProjector(projection1))
 
 	store1.Append(ctx, "post-x1", []fact.Event{
 		{ID: uuid.New().String(), Type: EventPostCreated, Data: MarshalData(PostCreated{ID: "x1", Kind: Short, Body: "persisted post"})},
@@ -326,9 +320,8 @@ func TestPostgresEventStore_ReplayIntoProjection(t *testing.T) {
 		{ID: uuid.New().String(), Type: EventPostPublished, Data: MarshalData(PostPublished{ID: "x1", URL: "https://example.com/x1", PublishedAt: time.Now().UTC()})},
 	})
 
-	// Simulate a new process: fresh projection, replay from DB
 	projection2 := &PostProjection{}
-	store2 := NewPostgresEventStore(db, WithPgProjector(projection2))
+	store2 := fact.NewPostgresStore(db, fact.WithPgProjector(projection2))
 
 	if err := store2.Replay(ctx); err != nil {
 		t.Fatalf("Replay: %v", err)
@@ -345,6 +338,3 @@ func TestPostgresEventStore_ReplayIntoProjection(t *testing.T) {
 		t.Error("expected non-zero PublishedAt after replay")
 	}
 }
-
-// Verify PostgresEventStore satisfies the EventStore interface at compile time.
-var _ fact.EventStore = (*PostgresEventStore)(nil)

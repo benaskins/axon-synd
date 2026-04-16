@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	github.com/benaskins/axon v0.4.0
 	github.com/benaskins/axon-base v0.0.0-20260405012529-8279a79b6723
-	github.com/benaskins/axon-fact v0.1.2-0.20260313052934-ad7453c0a820
+	github.com/benaskins/axon-fact v0.12.0
 	github.com/benaskins/axon-gate v0.1.4
 	github.com/benaskins/axon-rule v0.2.0
 	github.com/google/uuid v1.6.0
