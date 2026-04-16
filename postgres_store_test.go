@@ -12,6 +12,7 @@ import (
 	"github.com/benaskins/axon-base/migration"
 	"github.com/benaskins/axon-base/pool"
 	fact "github.com/benaskins/axon-fact"
+	factpg "github.com/benaskins/axon-fact/postgres"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -40,7 +41,7 @@ func openTestDB(t *testing.T) *sql.DB {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	if err := migration.Run(db, fact.Migrations, "migrations"); err != nil {
+	if err := migration.Run(db, factpg.Migrations, "migrations"); err != nil {
 		db.Close()
 		t.Fatalf("run migrations: %v", err)
 	}
@@ -58,11 +59,11 @@ func openTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func openTestEventStore(t *testing.T) *fact.PostgresStore {
+func openTestEventStore(t *testing.T) *factpg.Store {
 	t.Helper()
 	db := openTestDB(t)
 	projection := &PostProjection{}
-	store := fact.NewPostgresStore(db, fact.WithPgProjector(projection))
+	store := factpg.NewStore(db, factpg.WithProjector(projection))
 	return store
 }
 
@@ -311,7 +312,7 @@ func TestPostgresEventStore_ReplayIntoProjection(t *testing.T) {
 	db := openTestDB(t)
 
 	projection1 := &PostProjection{}
-	store1 := fact.NewPostgresStore(db, fact.WithPgProjector(projection1))
+	store1 := factpg.NewStore(db, factpg.WithProjector(projection1))
 
 	store1.Append(ctx, "post-x1", []fact.Event{
 		{ID: uuid.New().String(), Type: EventPostCreated, Data: MarshalData(PostCreated{ID: "x1", Kind: Short, Body: "persisted post"})},
@@ -321,7 +322,7 @@ func TestPostgresEventStore_ReplayIntoProjection(t *testing.T) {
 	})
 
 	projection2 := &PostProjection{}
-	store2 := fact.NewPostgresStore(db, fact.WithPgProjector(projection2))
+	store2 := factpg.NewStore(db, factpg.WithProjector(projection2))
 
 	if err := store2.Replay(ctx); err != nil {
 		t.Fatalf("Replay: %v", err)

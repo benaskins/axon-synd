@@ -14,6 +14,7 @@ import (
 	"github.com/benaskins/axon-base/migration"
 	"github.com/benaskins/axon-base/pool"
 	fact "github.com/benaskins/axon-fact"
+	factpg "github.com/benaskins/axon-fact/postgres"
 	synd "github.com/benaskins/axon-synd"
 	"github.com/spf13/cobra"
 )
@@ -140,14 +141,14 @@ func newPersistentStore(ctx context.Context, dsn string) (*synd.PostStore, *synd
 		slog.Error("get sql.DB handle", "error", err)
 		os.Exit(1)
 	}
-	if err := migration.Run(db, fact.Migrations, "migrations"); err != nil {
+	if err := migration.Run(db, factpg.Migrations, "migrations"); err != nil {
 		slog.Error("run migrations", "error", err)
 		os.Exit(1)
 	}
 
 	store := synd.NewPostStore(nil)
 	projection := store.Projection()
-	events := fact.NewPostgresStore(db, fact.WithPgProjector(projection))
+	events := factpg.NewStore(db, factpg.WithProjector(projection))
 	store.SetEventStore(events)
 
 	if err := events.Replay(ctx); err != nil {
